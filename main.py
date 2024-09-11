@@ -14,14 +14,14 @@ from PyQt5.QtWidgets import (
     QSlider,
     QLineEdit,
     QCheckBox,
-    QRadioButton,
     QMessageBox,
-    QFrame,
     QSpacerItem,
     QSizePolicy,
     QShortcut,
+    QFileDialog,
 )
 
+import time
 
 # import standard function from math
 from math import (
@@ -42,6 +42,8 @@ from math import (
     asinh,
     acosh,
     atanh,
+    pi,
+    e,
 )
 
 ln = log
@@ -67,7 +69,7 @@ def create_function_from_string(string):
 
 
 DEFAULT_NUM_ARROWS = 21
-MAX_NUM_ARROWS = 1000
+MAX_NUM_ARROWS = 100
 
 # length = 1    ~  1 / 100  of the length of the diagonal
 # length = 10   ~  1 / 10   of the length of the diagonal
@@ -78,13 +80,16 @@ ZOOM = 2
 MAX_ZOOM = 5e-3
 
 
+# TODO:
+# more efficient arrow drawing - caching
+
+
 class DirectionFieldBuilder:
     """Plots direction fields using the matplotlib library."""
 
-    def __init__(self, points, app):
+    def __init__(self, plot, app):
         self.press = None  # holds x, y of pressed point while moving, else None
-        self.points = points  # 'points' given to the constructor will be a Line2D ax.plot([0], [0]) object
-        # we need it to access points.figure.canvas
+        self.plot = plot
         self.app = app  # the MyApp object SCB is embedded in
 
         self.num_arrows = DEFAULT_NUM_ARROWS
@@ -92,25 +97,27 @@ class DirectionFieldBuilder:
         self.function = create_function_from_string(DEFAULT_FUNCTION)
 
         self.motion_counter = 0
+        self.func_times = []
+        self.draw_times = []
 
     def connect(self):
         """Connect to all the events we need."""
-        self.cidpress = self.points.figure.canvas.mpl_connect(
+        self.cidpress = self.plot.figure.canvas.mpl_connect(
             "button_press_event", self.on_press
         )
-        self.cidrelease = self.points.figure.canvas.mpl_connect(
+        self.cidrelease = self.plot.figure.canvas.mpl_connect(
             "button_release_event", self.on_release
         )
-        self.cidmotion = self.points.figure.canvas.mpl_connect(
+        self.cidmotion = self.plot.figure.canvas.mpl_connect(
             "motion_notify_event", self.on_motion
         )
-        self.cidzoom = self.points.figure.canvas.mpl_connect("scroll_event", self.on_scroll)
+        self.cidzoom = self.plot.figure.canvas.mpl_connect("scroll_event", self.on_scroll)
 
     def on_press(self, event):
         """
         Begins canvas movement if the left mouse button was clicked
         """
-        if event.inaxes != self.points.axes:
+        if event.inaxes != self.plot.axes:
             return
 
         # left mouse button --> begin canvas movement
@@ -120,15 +127,15 @@ class DirectionFieldBuilder:
             self.press = (event.xdata, event.ydata)
 
     def on_motion(self, event):
-        """Changes axes lims if moving_canvas, draws spline curves if moving_point."""
-        if self.press is None or event.inaxes != self.points.axes:
+        """Changes axes lims when moving_canvas"""
+        if self.press is None or event.inaxes != self.plot.axes:
             return
         xlast, ylast = self.press
 
         if self.moving_canvas:
             dx, dy = event.xdata - xlast, event.ydata - ylast
-            self.points.axes.set_xlim([x - dx for x in self.points.axes.get_xlim()])
-            self.points.axes.set_ylim([y - dy for y in self.points.axes.get_ylim()])
+            self.plot.axes.set_xlim([x - dx for x in self.plot.axes.get_xlim()])
+            self.plot.axes.set_ylim([y - dy for y in self.plot.axes.get_ylim()])
 
             self.app.update_displayed_lims()
 
@@ -136,11 +143,11 @@ class DirectionFieldBuilder:
             if self.motion_counter % 10 == 0:
                 self.draw_field()
             else:
-                self.points.figure.canvas.draw()
+                self.plot.figure.canvas.draw()
 
     def on_release(self, event):
         """Stops canvas movement or point movement."""
-        if self.press is None or event.inaxes != self.points.axes:
+        if self.press is None or event.inaxes != self.plot.axes:
             return
 
         if self.moving_canvas:
@@ -151,11 +158,11 @@ class DirectionFieldBuilder:
     def on_scroll(self, event):
         """Zooms in and out based on 'ZOOM' by scaling the x and y lims accordingly."""
 
-        if event.inaxes != self.points.axes:
+        if event.inaxes != self.plot.axes:
             return
 
         margin = (ZOOM - 1) / 2  # how much to add on both sides
-        (xmin, xmax), (ymin, ymax) = self.points.axes.get_xlim(), self.points.axes.get_ylim()
+        (xmin, xmax), (ymin, ymax) = self.plot.axes.get_xlim(), self.plot.axes.get_ylim()
         xleft, xright, ydown, yup = (
             event.xdata - xmin,
             xmax - event.xdata,
@@ -173,15 +180,15 @@ class DirectionFieldBuilder:
             xlim = (xmin + margin * xleft, xmax - margin * xright)
             ylim = (ymin + margin * ydown, ymax - margin * yup)
 
-        self.points.axes.set_xlim(xlim)
-        self.points.axes.set_ylim(ylim)
+        self.plot.axes.set_xlim(xlim)
+        self.plot.axes.set_ylim(ylim)
         self.app.update_displayed_lims()
         self.draw_field()
 
     def draw_field(self, just_entered_new_function=False):
         """Draws the direction field."""
-        xlim = self.points.axes.get_xlim()  # save old lims
-        ylim = self.points.axes.get_ylim()
+        xlim = self.plot.axes.get_xlim()  # save old lims
+        ylim = self.plot.axes.get_ylim()
 
         def get_line(x, y, function):
             def round_to_zero(n):
@@ -227,9 +234,11 @@ class DirectionFieldBuilder:
             xstep / 2 if self.num_arrows % 2 == 0 else 0
         )
         ymargin = (self.num_arrows // 4) * ystep
+        # xmargin = ymargin = 0
         xs = np.arange(f(xlim[0], xstep) - xmargin, xlim[1] + xstep + xmargin, xstep)
         ys = np.arange(f(ylim[0], ystep) - ymargin, ylim[1] + ystep + ymargin, ystep)
 
+        # start = time.time()
         # try to get the arrows
         try:
             arrows = np.array(
@@ -249,10 +258,13 @@ class DirectionFieldBuilder:
             if just_entered_new_function:
                 raise e
 
-        self.points.axes.cla()
+        # self.func_times.append(time.time() - start)
+        # start = time.time()
+
+        self.plot.axes.cla()
 
         if len(arrows) == 4:
-            self.points.axes.quiver(
+            self.plot.axes.quiver(
                 arrows[0],
                 arrows[1],
                 arrows[2] - arrows[0],
@@ -262,15 +274,22 @@ class DirectionFieldBuilder:
                 scale=1,
             )
 
+        # self.draw_times.append(time.time() - start)
+        # if len(self.func_times) == 10:
+        #     print("Function mean: ", sum(self.func_times) / 10)
+        #     print("Draw mean: ", sum(self.draw_times) / 10)
+        #     self.func_times = []
+        #     self.draw_times = []
+
         # set old lims
-        self.points.axes.set_xlim(xlim)
-        self.points.axes.set_ylim(ylim)
+        self.plot.axes.set_xlim(xlim)
+        self.plot.axes.set_ylim(ylim)
 
         # draw the axes
-        self.points.axes.axvline(0, color="r", linewidth=1)
-        self.points.axes.axhline(0, color="r", linewidth=1)
+        self.plot.axes.axvline(0, color="r", linewidth=1)
+        self.plot.axes.axhline(0, color="r", linewidth=1)
 
-        self.points.figure.canvas.draw()
+        self.plot.figure.canvas.draw()
 
 
 class Canvas(FigureCanvas):
@@ -289,8 +308,8 @@ class Canvas(FigureCanvas):
         self.ax.set_ylim(DEFAULT_YMIN, DEFAULT_YMAX)
         self.ax.axvline(0, color="r", linewidth=1)
         self.ax.axhline(0, color="r", linewidth=1)
-        (empty_point,) = self.ax.plot([0], [0])
-        self.dfb = DirectionFieldBuilder(empty_point, self.parent)
+        (plot,) = self.ax.plot([0], [0])
+        self.dfb = DirectionFieldBuilder(plot, self.parent)
         self.dfb.connect()
 
     def get_xlim(self):
@@ -326,17 +345,16 @@ class Canvas(FigureCanvas):
 
     def set_equal_axes(self):
         self.redraw()
-        self.dfb.points.axes.axis("equal")
+        self.dfb.plot.axes.axis("equal")
 
     def set_auto_axes(self):
-        self.dfb.points.axes.axis("auto")
+        self.dfb.plot.axes.axis("auto")
         self.redraw()
 
 
 class MyApp(QWidget):
     """Creates the GUI using the PyQt5 library."""
 
-    move_point_or_canvas = True
     equal_axes = True  # True if the 'Equal axes' checkbox is checked
 
     def __init__(self):
@@ -372,14 +390,11 @@ class MyApp(QWidget):
 
         self.graph_button = QPushButton("Graph")
         self.graph_button.clicked.connect(self.execute_graph_function)
+        self.graph_button.setShortcut("Return")
         graphLayout = QVBoxLayout()
         graphLayout.addLayout(form)
         graphLayout.addWidget(self.graph_button)
         self.sidebarLayout.addLayout(graphLayout)
-
-        # bind the 'Enter' key to graph the entered function
-        enter_shortcut = QShortcut(Qt.Key_Return, self.function_input)
-        enter_shortcut.activated.connect(self.execute_graph_function)
 
         # add space
         spacer = QSpacerItem(20, 80, QSizePolicy.Minimum)
@@ -424,8 +439,13 @@ class MyApp(QWidget):
         form = QVBoxLayout()
         form.addWidget(self.label)
         form.addWidget(self.slider)
-        # form.setContentsMargins(30, 0, 30, 0)
         self.sidebarLayout.addLayout(form)
+
+        # create the 'save image' button
+        self.save_button = QPushButton("&Save image")
+        self.save_button.clicked.connect(self.show_save_file_dialog)
+        self.sidebarLayout.addWidget(self.save_button)
+        self.save_button.setShortcut("Ctrl+S")
 
         # add space
         self.sidebarLayout.addItem(spacer)
@@ -477,6 +497,20 @@ class MyApp(QWidget):
         self.equalAxes.stateChanged.connect(self.checked_equalAxes)
         self.equalAxes.setChecked(MyApp.equal_axes)
         self.sidebarLayout.addWidget(self.equalAxes)
+
+    def show_save_file_dialog(self):
+        """Opens a dialog to save the current figure as a png or svg file."""
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save File",
+            "",
+            "PNG (*.png);; svg (*.svg)",
+            options=options,
+        )
+        if file_name:
+            print(f"Selected file: {file_name}")
+            self.canvas.figure.savefig(file_name, bbox_inches="tight")
 
     def execute_graph_function(self):
         """Executes the function given in the function input line."""
