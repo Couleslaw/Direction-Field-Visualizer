@@ -19,6 +19,7 @@ from PyQt5.QtWidgets import (
     QFrame,
     QSpacerItem,
     QSizePolicy,
+    QShortcut,
 )
 
 
@@ -82,8 +83,6 @@ class DirectionFieldBuilder:
 
     def __init__(self, points, app):
         self.press = None  # holds x, y of pressed point while moving, else None
-        self.moving_canvas = False  # True if moving canvas, else False
-        self.moving_point = False  # True if moving a point on canvas, else False
         self.points = points  # 'points' given to the constructor will be a Line2D ax.plot([0], [0]) object
         # we need it to access points.figure.canvas
         self.app = app  # the MyApp object SCB is embedded in
@@ -109,19 +108,14 @@ class DirectionFieldBuilder:
 
     def on_press(self, event):
         """
-        Creates a new point if the 'Add points' button is checked. Otherwise:
-        Creates a new point if the right mouse button was clicked.
-        Begins canvas movement if the left mouse button was clicked and 'Add points' and 'Auto adjust' are not checked.
-        Exception: event.xdata is in self.xs --> does not create a new point because the curve would not be defined.
+        Begins canvas movement if the left mouse button was clicked
         """
-        if event.inaxes != self.points.axes or self.moving_point:
+        if event.inaxes != self.points.axes:
             return
 
         # left mouse button --> begin canvas movement
         elif event.button == 1:
             self.moving_canvas = True
-            # redraw the whole spline (so that we don't have to redraw it while moving the canvas)
-
             self.draw_field()
             self.press = (event.xdata, event.ydata)
 
@@ -155,8 +149,7 @@ class DirectionFieldBuilder:
         self.press = None
 
     def on_scroll(self, event):
-        """Zooms in and out based on 'ZOOM' by scaling the x and y lims accordingly.
-        Doesn't zoom if 'Auto adjust' is checked."""
+        """Zooms in and out based on 'ZOOM' by scaling the x and y lims accordingly."""
 
         if event.inaxes != self.points.axes:
             return
@@ -183,11 +176,10 @@ class DirectionFieldBuilder:
         self.points.axes.set_xlim(xlim)
         self.points.axes.set_ylim(ylim)
         self.app.update_displayed_lims()
-        print("on_scroll draw_field")
         self.draw_field()
 
     def draw_field(self, just_entered_new_function=False):
-        """Calculates polynomials and draws the spline function for the coords given."""
+        """Draws the direction field."""
         xlim = self.points.axes.get_xlim()  # save old lims
         ylim = self.points.axes.get_ylim()
 
@@ -270,8 +262,11 @@ class DirectionFieldBuilder:
                 scale=1,
             )
 
-        self.points.axes.set_xlim(xlim)  # set old lims
+        # set old lims
+        self.points.axes.set_xlim(xlim)
         self.points.axes.set_ylim(ylim)
+
+        # draw the axes
         self.points.axes.axvline(0, color="r", linewidth=1)
         self.points.axes.axhline(0, color="r", linewidth=1)
 
@@ -292,12 +287,11 @@ class Canvas(FigureCanvas):
         """Create the SplineCurvesBuilder object and set default parameters."""
         self.ax.set_xlim(DEFAULT_XMIN, DEFAULT_XMAX)
         self.ax.set_ylim(DEFAULT_YMIN, DEFAULT_YMAX)
-        self.ax.set_aspect("equal")
         self.ax.axvline(0, color="r", linewidth=1)
         self.ax.axhline(0, color="r", linewidth=1)
         (empty_point,) = self.ax.plot([0], [0])
-        self.spl = DirectionFieldBuilder(empty_point, self.parent)
-        self.spl.connect()
+        self.dfb = DirectionFieldBuilder(empty_point, self.parent)
+        self.dfb.connect()
 
     def get_xlim(self):
         return self.ax.get_xlim()
@@ -314,28 +308,28 @@ class Canvas(FigureCanvas):
         self.ax.set_ylim(ylim)
 
     def get_num_arrows(self):
-        return self.spl.num_arrows
+        return self.dfb.num_arrows
 
     def set_num_arrows(self, num_arrows):
-        self.spl.num_arrows = num_arrows
+        self.dfb.num_arrows = num_arrows
         self.redraw()
 
     def get_arrow_length(self):
-        return self.spl.arrow_length
+        return self.dfb.arrow_length
 
     def set_arrow_length(self, arrow_length):
-        self.spl.arrow_length = arrow_length
+        self.dfb.arrow_length = arrow_length
         self.redraw()
 
     def redraw(self, just_entered_new_function=False):
-        self.spl.draw_field(just_entered_new_function)
+        self.dfb.draw_field(just_entered_new_function)
 
     def set_equal_axes(self):
         self.redraw()
-        self.spl.points.axes.axis("equal")
+        self.dfb.points.axes.axis("equal")
 
     def set_auto_axes(self):
-        self.spl.points.axes.axis("auto")
+        self.dfb.points.axes.axis("auto")
         self.redraw()
 
 
@@ -382,6 +376,10 @@ class MyApp(QWidget):
         graphLayout.addLayout(form)
         graphLayout.addWidget(self.graph_button)
         self.sidebarLayout.addLayout(graphLayout)
+
+        # bind the 'Enter' key to graph the entered function
+        enter_shortcut = QShortcut(Qt.Key_Return, self.function_input)
+        enter_shortcut.activated.connect(self.execute_graph_function)
 
         # add space
         spacer = QSpacerItem(20, 80, QSizePolicy.Minimum)
@@ -493,10 +491,10 @@ class MyApp(QWidget):
         #    --> ValueErrors are raised before NameErrors and ihe invalid function is not detected
         # 4. moved the canvas such that there is a point where the NameError is raised (ValueError is not raised)
 
-        previous = self.canvas.spl.function
+        previous = self.canvas.dfb.function
         try:
             new_func = create_function_from_string(func_str)
-            self.canvas.spl.function = new_func
+            self.canvas.dfb.function = new_func
             self.canvas.redraw(just_entered_new_function=True)
             success = True
         except:
@@ -504,7 +502,7 @@ class MyApp(QWidget):
 
         # restore the previous function if the new one is invalid
         if not success:
-            self.canvas.spl.function = previous
+            self.canvas.dfb.function = previous
             self.canvas.redraw()
 
     def checked_equalAxes(self, checked):
