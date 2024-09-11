@@ -77,8 +77,8 @@ ZOOM = 2
 MAX_ZOOM = 5e-3
 
 
-class SplineCurvesBuilder:
-    """Plots spline curves using the matplotlib library."""
+class DirectionFieldBuilder:
+    """Plots direction fields using the matplotlib library."""
 
     def __init__(self, points, app):
         self.press = None  # holds x, y of pressed point while moving, else None
@@ -186,12 +186,10 @@ class SplineCurvesBuilder:
         print("on_scroll draw_field")
         self.draw_field()
 
-    def draw_field(self):
+    def draw_field(self, just_entered_new_function=False):
         """Calculates polynomials and draws the spline function for the coords given."""
         xlim = self.points.axes.get_xlim()  # save old lims
         ylim = self.points.axes.get_ylim()
-
-        self.points.axes.cla()
 
         def get_line(x, y, function):
             def round_to_zero(n):
@@ -205,12 +203,18 @@ class SplineCurvesBuilder:
             try:
                 der = function(x, y)
                 vector = np.array([1, der])
+            # this is raised in the case of nonzero/0 --> draw a vertical line
             except FloatingPointError:
                 vector = np.array([0, 1])
+            # this is raised in the case of 0/0  --> dont draw anything
             except ZeroDivisionError:
                 return None
+            # this is raised if the function is not defined at the point e.i. sqrt(-1)
             except ValueError:
                 return None
+            # e.i sinsin(x) --> this is taken care of later
+            except NameError as e:
+                raise e
 
             center = np.array([x, y])
             vector = vector / np.linalg.norm(vector)
@@ -234,23 +238,37 @@ class SplineCurvesBuilder:
         xs = np.arange(f(xlim[0], xstep) - xmargin, xlim[1] + xstep + xmargin, xstep)
         ys = np.arange(f(ylim[0], ystep) - ymargin, ylim[1] + ystep + ymargin, ystep)
 
-        lines = np.array(
-            [
-                line
-                for line in [get_line(x, y, function=self.function) for x in xs for y in ys]
-                if line is not None
-            ]
-        ).T
+        # try to get the arrows
+        try:
+            arrows = np.array(
+                [
+                    line
+                    for line in [
+                        get_line(x, y, function=self.function) for x in xs for y in ys
+                    ]
+                    if line is not None
+                ]
+            ).T
+        # if there is an undefined function e.i. sinsin(x)
+        except NameError as e:
+            QMessageBox.critical(self.app, "Error", f"Unknown function: {e}")
+            arrows = []
+            # if this occurs right after entering a new function, raise the error --> the previous function will be restored
+            if just_entered_new_function:
+                raise e
 
-        self.points.axes.quiver(
-            lines[0],
-            lines[1],
-            lines[2] - lines[0],
-            lines[3] - lines[1],
-            angles="xy",
-            scale_units="xy",
-            scale=1,
-        )
+        self.points.axes.cla()
+
+        if len(arrows) == 4:
+            self.points.axes.quiver(
+                arrows[0],
+                arrows[1],
+                arrows[2] - arrows[0],
+                arrows[3] - arrows[1],
+                angles="xy",
+                scale_units="xy",
+                scale=1,
+            )
 
         self.points.axes.set_xlim(xlim)  # set old lims
         self.points.axes.set_ylim(ylim)
@@ -278,7 +296,7 @@ class Canvas(FigureCanvas):
         self.ax.axvline(0, color="r", linewidth=1)
         self.ax.axhline(0, color="r", linewidth=1)
         (empty_point,) = self.ax.plot([0], [0])
-        self.spl = SplineCurvesBuilder(empty_point, self.parent)
+        self.spl = DirectionFieldBuilder(empty_point, self.parent)
         self.spl.connect()
 
     def get_xlim(self):
@@ -309,8 +327,8 @@ class Canvas(FigureCanvas):
         self.spl.arrow_length = arrow_length
         self.redraw()
 
-    def redraw(self):
-        self.spl.draw_field()
+    def redraw(self, just_entered_new_function=False):
+        self.spl.draw_field(just_entered_new_function)
 
     def set_equal_axes(self):
         self.redraw()
@@ -466,19 +484,27 @@ class MyApp(QWidget):
         """Executes the function given in the function input line."""
         func_str = self.function_input.text()
         success = False
-        try:
-            func = create_function_from_string(func_str)
-            func(23.28949, 0.345882894)
-            success = True
-        except NameError:
-            QMessageBox.critical(self, "Error", f"Invalid function")
-        except SyntaxError:
-            QMessageBox.critical(self, "Error", f"Invalid function")
-        except Exception as e:
-            success = True
 
-        if success:
-            self.canvas.spl.function = create_function_from_string(func_str)
+        # save the last function in case the new one is invalid
+        # it is possible that the last is invalid as well iff
+        # 1. the user entered a valid function that is not defined everywhere
+        # 2. moved the canvas so that the whole rendering region is undefined --> no arrows are drawn
+        # 3. entered an invalid function s.t. it is undefined on the whole rendering region
+        #    --> ValueErrors are raised before NameErrors and ihe invalid function is not detected
+        # 4. moved the canvas such that there is a point where the NameError is raised (ValueError is not raised)
+
+        previous = self.canvas.spl.function
+        try:
+            new_func = create_function_from_string(func_str)
+            self.canvas.spl.function = new_func
+            self.canvas.redraw(just_entered_new_function=True)
+            success = True
+        except:
+            QMessageBox.critical(self, "Error", f"Invalid function")
+
+        # restore the previous function if the new one is invalid
+        if not success:
+            self.canvas.spl.function = previous
             self.canvas.redraw()
 
     def checked_equalAxes(self, checked):
