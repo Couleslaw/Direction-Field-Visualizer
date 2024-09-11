@@ -56,9 +56,9 @@ np.seterr(divide="raise", invalid="ignore")
 
 
 # constants
-AXIS_RATIO = 1.7
-DEFAULT_XMIN = -3
-DEFAULT_XMAX = 3
+AXIS_RATIO = 1.5
+DEFAULT_XMIN = -2.5
+DEFAULT_XMAX = 2.5
 DEFAULT_YMIN = DEFAULT_XMIN / AXIS_RATIO
 DEFAULT_YMAX = DEFAULT_XMAX / AXIS_RATIO
 
@@ -78,6 +78,7 @@ MAX_NUM_ARROWS = 100
 # length = 1    ~  1 / 100  of the length of the diagonal
 # length = 10   ~  1 / 10   of the length of the diagonal
 DEFAULT_ARROW_LENGTH = 4
+DEFAULT_ARROW_WIDTH = 3
 
 ROUND_INPUT_LINES = 7
 ZOOM = 2
@@ -95,6 +96,7 @@ class DirectionFieldBuilder:
 
         self.num_arrows = DEFAULT_NUM_ARROWS
         self.arrow_length = DEFAULT_ARROW_LENGTH
+        self.arrow_width = DEFAULT_ARROW_WIDTH
         self.trace_lines_width = DEFAULT_TRACE_LINES_WIDTH
         self.function = create_function_from_string(DEFAULT_FUNCTION)
 
@@ -144,7 +146,7 @@ class DirectionFieldBuilder:
         self.app.update_displayed_lims()
 
         self.motion_counter += 1
-        if self.motion_counter % 10 == 0:
+        if self.motion_counter % 3 == 0:
             self.motion_counter = 0
             self.draw_field(keep_cache=True)
         else:
@@ -271,6 +273,10 @@ class DirectionFieldBuilder:
 
         self.plot.axes.cla()
 
+        # arrow_width  1 = 0.001
+        # arrow_width 10 = 0.005
+        arrow_width = 0.001 + 0.004 * (self.arrow_width - 1) / 9
+
         if len(arrows) == 4:
             self.plot.axes.quiver(
                 arrows[0],
@@ -280,6 +286,7 @@ class DirectionFieldBuilder:
                 angles="xy",
                 scale_units="xy",
                 scale=1,
+                width=arrow_width,
             )
 
         # set old lims
@@ -357,11 +364,9 @@ class Canvas(FigureCanvas):
         return self.ax.get_ylim()
 
     def set_xlim(self, xlim):
-        print("set_xlim: ", xlim)
         self.ax.set_xlim(xlim)
 
     def set_ylim(self, ylim):
-        print("set_ylim: ", ylim)
         self.ax.set_ylim(ylim)
 
     def get_num_arrows(self):
@@ -371,11 +376,12 @@ class Canvas(FigureCanvas):
         self.dfb.num_arrows = num_arrows
         self.redraw()
 
-    def get_arrow_length(self):
-        return self.dfb.arrow_length
-
     def set_arrow_length(self, arrow_length):
         self.dfb.arrow_length = arrow_length
+        self.redraw()
+
+    def set_arrow_width(self, arrow_width):
+        self.dfb.arrow_width = arrow_width
         self.redraw()
 
     def set_trace_lines_width(self, trace_lines_width):
@@ -400,7 +406,7 @@ class MyApp(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setMinimumSize(1500, 800)
+        self.setMinimumSize(1600, 800)
         self.setWindowTitle("Direction Field Visualizer")
 
         self.layout = QHBoxLayout()
@@ -415,7 +421,7 @@ class MyApp(QWidget):
         self.sidebarLayout = QVBoxLayout()
         self.sidebarLayout.setAlignment(Qt.AlignTop)
         sidebar.setLayout(self.sidebarLayout)
-        sidebar.setMaximumWidth(420)
+        sidebar.setMaximumWidth(400)
         self.layout.addWidget(sidebar)
 
         self.initUI()
@@ -436,6 +442,12 @@ class MyApp(QWidget):
         graphLayout.addLayout(form)
         graphLayout.addWidget(self.graph_button)
         self.sidebarLayout.addLayout(graphLayout)
+
+        # create the 'save image' button
+        self.save_button = QPushButton("&Save image")
+        self.save_button.clicked.connect(self.show_save_file_dialog)
+        self.sidebarLayout.addWidget(self.save_button)
+        self.save_button.setShortcut("Ctrl+S")
 
         # add space
         spacer = QSpacerItem(20, 80, QSizePolicy.Minimum)
@@ -484,6 +496,28 @@ class MyApp(QWidget):
         form.addWidget(self.slider_a)
         self.sidebarLayout.addLayout(form)
 
+        # create the 'arrow width' slider
+        self.slider_aw = QSlider(Qt.Horizontal)
+        self.slider_aw.setMinimum(1)
+        self.slider_aw.setMaximum(10)
+        self.slider_aw.setValue(DEFAULT_ARROW_WIDTH)
+        self.slider_aw.setMinimumWidth(150)
+        self.slider_aw.setTickInterval(1)
+        self.slider_aw.setSingleStep(1)
+        self.slider_aw.setTickPosition(QSlider.TicksBelow)
+        self.slider_aw.valueChanged.connect(self.changed_arrow_width)
+        self.label_aw = QLabel()
+        self.label_aw.setText(
+            f"  &Arrow width: {DEFAULT_ARROW_WIDTH}   "
+        )  # spaces at end for padding
+        self.label_aw.setBuddy(
+            self.slider_aw
+        )  # changes focus to the slider if 'Alt+a' is pressed
+        form = QVBoxLayout()
+        form.addWidget(self.label_aw)
+        form.addWidget(self.slider_aw)
+        self.sidebarLayout.addLayout(form)
+
         # create the 'trace line width' slider
         self.slider_w = QSlider(Qt.Horizontal)
         self.slider_w.setMinimum(1)
@@ -505,12 +539,6 @@ class MyApp(QWidget):
         form.addWidget(self.label_w)
         form.addWidget(self.slider_w)
         self.sidebarLayout.addLayout(form)
-
-        # create the 'save image' button
-        self.save_button = QPushButton("&Save image")
-        self.save_button.clicked.connect(self.show_save_file_dialog)
-        self.sidebarLayout.addWidget(self.save_button)
-        self.save_button.setShortcut("Ctrl+S")
 
         # add space
         self.sidebarLayout.addItem(spacer)
@@ -574,7 +602,6 @@ class MyApp(QWidget):
             options=options,
         )
         if file_name:
-            print(f"Selected file: {file_name}")
             self.canvas.figure.savefig(file_name, bbox_inches="tight")
 
     def execute_graph_function(self):
@@ -701,6 +728,13 @@ class MyApp(QWidget):
             f"  &Arrow length: {arrow_length}   "
         )  # spaces at end for padding
         self.canvas.set_arrow_length(arrow_length)
+        self.canvas.redraw()
+
+    def changed_arrow_width(self):
+        """Updates the arrow width according to the slider."""
+        arrow_width = self.slider_aw.value()
+        self.label_aw.setText(f"  &Arrow width: {arrow_width}   ")  # spaces at end for padding
+        self.canvas.set_arrow_width(arrow_width)
         self.canvas.redraw()
 
     def changed_trace_lines_width(self):
