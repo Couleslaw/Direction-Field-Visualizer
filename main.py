@@ -64,21 +64,21 @@ DEFAULT_YMAX = DEFAULT_XMAX / AXIS_RATIO
 
 DEFAULT_FUNCTION = "-x*y"
 
-TRACE_GRANULARITY = 1000
-DEFAULT_TRACE_LINES_WIDTH = 4
-
 
 def create_function_from_string(string):
     return eval(f"lambda x, y: {string}")
 
 
-DEFAULT_NUM_ARROWS = 21
-MAX_NUM_ARROWS = 100
+TRACE_GRANULARITY = 1000
+DEFAULT_TRACE_LINES_WIDTH = 4
+DEFAULT_MOUSE_LINE_WIDTH = 4
 
 # length = 1    ~  1 / 100  of the length of the diagonal
 # length = 10   ~  1 / 10   of the length of the diagonal
 DEFAULT_ARROW_LENGTH = 4
-DEFAULT_ARROW_WIDTH = 3
+DEFAULT_ARROW_WIDTH = 4
+DEFAULT_NUM_ARROWS = 21
+MAX_NUM_ARROWS = 100
 
 ROUND_INPUT_LINES = 7
 ZOOM = 2
@@ -91,6 +91,9 @@ class DirectionFieldBuilder:
     def __init__(self, plot, app):
         self.press = None  # holds x, y of pressed point while moving, else None
         self.moving_canvas = False  # True if the canvas is being moved
+        self.drawing_mouse_line = False
+        self.last_mouse_line = None
+        self.mouse_pos = None
         self.plot = plot
         self.app = app  # the MyApp object SCB is embedded in
 
@@ -98,6 +101,7 @@ class DirectionFieldBuilder:
         self.arrow_length = DEFAULT_ARROW_LENGTH
         self.arrow_width = DEFAULT_ARROW_WIDTH
         self.trace_lines_width = DEFAULT_TRACE_LINES_WIDTH
+        self.mouse_line_width = DEFAULT_MOUSE_LINE_WIDTH
         self.function = create_function_from_string(DEFAULT_FUNCTION)
 
         self.motion_counter = 0
@@ -134,8 +138,20 @@ class DirectionFieldBuilder:
 
     def on_motion(self, event):
         """Changes axes lims when moving_canvas"""
-        if self.press is None or event.inaxes != self.plot.axes:
+        if event.inaxes != self.plot.axes:
+            if self.last_mouse_line is not None:
+                self.remove_mouse_line_from_plot()
+                self.plot.figure.canvas.draw()
+                self.last_mouse_line = None
             return
+
+        self.mouse_pos = (event.xdata, event.ydata)
+
+        if self.drawing_mouse_line:
+            self.draw_mouse_line()
+        if self.press is None:
+            return
+
         self.moving_canvas = True
         xlast, ylast = self.press
 
@@ -192,6 +208,47 @@ class DirectionFieldBuilder:
         self.app.update_displayed_lims()
         self.draw_field()
 
+    def get_arrow(self, x, y, arrow_len):
+        """
+        x, y: center of the arrow
+        returns: [s1, s2, v1, v2] where (s1, s2) is the start of the arrow and (v1, v2) is the vector of the arrow
+        """
+
+        # check cache
+        if (x, y) in self.arrows_cache:
+            return self.arrows_cache[(x, y)]
+
+        def round_to_zero(n):
+            if abs(n) < 1e-10:
+                return 0
+            return n
+
+        x = round_to_zero(x)
+        y = round_to_zero(y)
+
+        try:
+            der = self.function(x, y)
+            vector = np.array([1, der])
+        # this is raised in the case of nonzero/0 --> draw a vertical line
+        except FloatingPointError:
+            vector = np.array([0, 1])
+        # this is raised in the case of 0/0  --> dont draw anything
+        except ZeroDivisionError:
+            return None
+        # this is raised if the function is not defined at the point e.i. sqrt(-1)
+        except ValueError:
+            return None
+        # e.i sinsin(x) --> this is taken care of later
+        except NameError as e:
+            raise e
+
+        center = np.array([x, y])
+        vector = vector / np.linalg.norm(vector) * arrow_len
+
+        res = np.append(center - vector / 2, vector)
+        self.arrows_cache[(x, y)] = res
+        return res
+
     def draw_field(self, just_entered_new_function=False, keep_cache=False):
         """Draws the direction field."""
         if not keep_cache:
@@ -202,43 +259,6 @@ class DirectionFieldBuilder:
 
         diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
         vector_len = diagonal / 100 * self.arrow_length
-
-        # helper function for getting and arrow line passing through (x, y)
-        def get_line(x, y, function):
-            # check cache
-            if (x, y) in self.arrows_cache:
-                return self.arrows_cache[(x, y)]
-
-            def round_to_zero(n):
-                if abs(n) < 1e-10:
-                    return 0
-                return n
-
-            x = round_to_zero(x)
-            y = round_to_zero(y)
-
-            try:
-                der = function(x, y)
-                vector = np.array([1, der])
-            # this is raised in the case of nonzero/0 --> draw a vertical line
-            except FloatingPointError:
-                vector = np.array([0, 1])
-            # this is raised in the case of 0/0  --> dont draw anything
-            except ZeroDivisionError:
-                return None
-            # this is raised if the function is not defined at the point e.i. sqrt(-1)
-            except ValueError:
-                return None
-            # e.i sinsin(x) --> this is taken care of later
-            except NameError as e:
-                raise e
-
-            center = np.array([x, y])
-            vector = vector / np.linalg.norm(vector) * vector_len
-
-            res = np.append(center - vector / 2, vector)
-            self.arrows_cache[(x, y)] = res
-            return res
 
         xstep = (xlim[1] - xlim[0]) / self.num_arrows
         ystep = (ylim[1] - ylim[0]) / self.num_arrows
@@ -257,9 +277,7 @@ class DirectionFieldBuilder:
             arrows = np.array(
                 [
                     line
-                    for line in [
-                        get_line(x, y, function=self.function) for x in xs for y in ys
-                    ]
+                    for line in [self.get_arrow(x, y, vector_len) for x in xs for y in ys]
                     if line is not None
                 ]
             ).T
@@ -297,6 +315,8 @@ class DirectionFieldBuilder:
         self.plot.axes.axvline(0, color="b", linewidth=1.5)
         self.plot.axes.axhline(0, color="b", linewidth=1.5)
 
+        if self.drawing_mouse_line:
+            self.draw_mouse_line()
         self.plot.figure.canvas.draw()
 
     def trace_curve(self):
@@ -334,6 +354,37 @@ class DirectionFieldBuilder:
 
         lc = LineCollection([line], color="r", linewidth=self.trace_lines_width)
         self.plot.axes.add_collection(lc)
+        self.plot.figure.canvas.draw()
+
+    def remove_mouse_line_from_plot(self):
+        if self.last_mouse_line is not None:
+            try:
+                self.plot.axes.lines.remove(self.last_mouse_line[0])
+            except:
+                pass
+            else:
+                self.plot.figure.canvas.draw()
+
+    def draw_mouse_line(self):
+        if self.mouse_pos is None:
+            return
+
+        xlim = self.plot.axes.get_xlim()
+        ylim = self.plot.axes.get_ylim()
+        diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
+        vector_len = diagonal / 100 * self.arrow_length * 1.7
+        line_info = self.get_arrow(self.mouse_pos[0], self.mouse_pos[1], vector_len)
+        if line_info is None:
+            self.remove_mouse_line_from_plot()
+            return
+        x1 = line_info[0]
+        y1 = line_info[1]
+        x2 = x1 + line_info[2]
+        y2 = y1 + line_info[3]
+        self.remove_mouse_line_from_plot()
+        self.last_mouse_line = self.plot.axes.plot(
+            [x1, x2], [y1, y2], color="r", linewidth=self.mouse_line_width
+        )
         self.plot.figure.canvas.draw()
 
 
@@ -386,6 +437,9 @@ class Canvas(FigureCanvas):
 
     def set_trace_lines_width(self, trace_lines_width):
         self.dfb.trace_lines_width = trace_lines_width
+
+    def set_mouse_line_width(self, mouse_line_width):
+        self.dfb.mouse_line_width = mouse_line_width
 
     def redraw(self, just_entered_new_function=False):
         self.dfb.draw_field(just_entered_new_function)
@@ -485,9 +539,7 @@ class MyApp(QWidget):
         self.slider_a.setTickPosition(QSlider.TicksBelow)
         self.slider_a.valueChanged.connect(self.changed_arrow_length)
         self.label_a = QLabel()
-        self.label_a.setText(
-            f"  &Arrow length: {DEFAULT_ARROW_LENGTH}   "
-        )  # spaces at end for padding
+        self.label_a.setText(f"  &Arrow length: {DEFAULT_ARROW_LENGTH}   ")
         self.label_a.setBuddy(
             self.slider_a
         )  # changes focus to the slider if 'Alt+a' is pressed
@@ -507,9 +559,7 @@ class MyApp(QWidget):
         self.slider_aw.setTickPosition(QSlider.TicksBelow)
         self.slider_aw.valueChanged.connect(self.changed_arrow_width)
         self.label_aw = QLabel()
-        self.label_aw.setText(
-            f"  &Arrow width: {DEFAULT_ARROW_WIDTH}   "
-        )  # spaces at end for padding
+        self.label_aw.setText(f"  &Arrow width: {DEFAULT_ARROW_WIDTH}   ")
         self.label_aw.setBuddy(
             self.slider_aw
         )  # changes focus to the slider if 'Alt+a' is pressed
@@ -529,9 +579,7 @@ class MyApp(QWidget):
         self.slider_w.setTickPosition(QSlider.TicksBelow)
         self.slider_w.valueChanged.connect(self.changed_trace_lines_width)
         self.label_w = QLabel()
-        self.label_w.setText(
-            f"  &Trace line width: {DEFAULT_TRACE_LINES_WIDTH}   "
-        )  # spaces at end for padding
+        self.label_w.setText(f"  &Trace line width: {DEFAULT_TRACE_LINES_WIDTH}   ")
         self.label_w.setBuddy(
             self.slider_w
         )  # changes focus to the slider if 'Alt+t' is pressed
@@ -539,6 +587,33 @@ class MyApp(QWidget):
         form.addWidget(self.label_w)
         form.addWidget(self.slider_w)
         self.sidebarLayout.addLayout(form)
+
+        # create the 'trace line width' slider
+        self.slider_mw = QSlider(Qt.Horizontal)
+        self.slider_mw.setMinimum(1)
+        self.slider_mw.setMaximum(10)
+        self.slider_mw.setValue(DEFAULT_MOUSE_LINE_WIDTH)
+        self.slider_mw.setMinimumWidth(150)
+        self.slider_mw.setTickInterval(1)
+        self.slider_mw.setSingleStep(1)
+        self.slider_mw.setTickPosition(QSlider.TicksBelow)
+        self.slider_mw.valueChanged.connect(self.changed_mouse_line_width)
+        self.label_mw = QLabel()
+        self.label_mw.setText(f"  &Mouse line width: {DEFAULT_MOUSE_LINE_WIDTH}   ")
+        self.label_mw.setBuddy(
+            self.slider_mw
+        )  # changes focus to the slider if 'Alt+m' is pressed
+        form = QVBoxLayout()
+        form.addWidget(self.label_mw)
+        form.addWidget(self.slider_mw)
+        self.sidebarLayout.addLayout(form)
+
+        # create the 'Mouse line' checkbox
+        self.mouseLine = QCheckBox("Mouse line")
+        self.mouseLine.stateChanged.connect(self.checked_mouseLine)
+        self.mouseLine.setChecked(False)
+        self.mouseLine.setShortcut("Ctrl+M")
+        self.sidebarLayout.addWidget(self.mouseLine)
 
         # add space
         self.sidebarLayout.addItem(spacer)
@@ -724,22 +799,37 @@ class MyApp(QWidget):
     def changed_arrow_length(self):
         """Updates the arrow length according to the slider."""
         arrow_length = self.slider_a.value()
-        self.label_a.setText(
-            f"  &Arrow length: {arrow_length}   "
-        )  # spaces at end for padding
+        self.label_a.setText(f"  &Arrow length: {arrow_length}")
         self.canvas.set_arrow_length(arrow_length)
         self.canvas.redraw()
 
     def changed_arrow_width(self):
         """Updates the arrow width according to the slider."""
         arrow_width = self.slider_aw.value()
-        self.label_aw.setText(f"  &Arrow width: {arrow_width}   ")  # spaces at end for padding
+        self.label_aw.setText(f"  &Arrow width: {arrow_width}")
         self.canvas.set_arrow_width(arrow_width)
         self.canvas.redraw()
 
     def changed_trace_lines_width(self):
         """Updates the trace lines width according to the slider."""
-        self.canvas.set_trace_lines_width(self.slider_w.value())
+        width = self.slider_w.value()
+        self.label_a.setText(f"  &Trace lines width: {width}")
+        self.canvas.set_trace_lines_width(width)
+
+    def changed_mouse_line_width(self):
+        """Updates the mouse line width according to the slider."""
+        width = self.slider_mw.value()
+        self.label_mw.setText(f"  &Mouse line width: {width}")
+        self.canvas.set_mouse_line_width(width)
+        self.canvas.dfb.draw_mouse_line()
+
+    def checked_mouseLine(self):
+        """Turns the mouse line on and off."""
+        self.canvas.dfb.drawing_mouse_line = not self.canvas.dfb.drawing_mouse_line
+        if self.mouseLine.isChecked():
+            self.canvas.dfb.draw_mouse_line()
+        else:
+            self.canvas.dfb.remove_mouse_line_from_plot()
 
     def enable_input_lines(self, enabled):
         self.xmin_input.setEnabled(enabled)
