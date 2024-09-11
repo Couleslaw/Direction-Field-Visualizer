@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
@@ -17,11 +18,8 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QSpacerItem,
     QSizePolicy,
-    QShortcut,
     QFileDialog,
 )
-
-import time
 
 # import standard function from math
 from math import (
@@ -66,7 +64,8 @@ DEFAULT_YMAX = DEFAULT_XMAX / AXIS_RATIO
 
 DEFAULT_FUNCTION = "-x*y"
 
-# priklad: ln(sqrt(sin(x)*sin(y)))
+TRACE_GRANULARITY = 1000
+DEFAULT_TRACE_LINES_WIDTH = 4
 
 
 def create_function_from_string(string):
@@ -90,11 +89,13 @@ class DirectionFieldBuilder:
 
     def __init__(self, plot, app):
         self.press = None  # holds x, y of pressed point while moving, else None
+        self.moving_canvas = False  # True if the canvas is being moved
         self.plot = plot
         self.app = app  # the MyApp object SCB is embedded in
 
         self.num_arrows = DEFAULT_NUM_ARROWS
         self.arrow_length = DEFAULT_ARROW_LENGTH
+        self.trace_lines_width = DEFAULT_TRACE_LINES_WIDTH
         self.function = create_function_from_string(DEFAULT_FUNCTION)
 
         self.motion_counter = 0
@@ -122,29 +123,32 @@ class DirectionFieldBuilder:
 
         # left mouse button --> begin canvas movement
         elif event.button == 1:
-            self.moving_canvas = True
             self.draw_field(keep_cache=True)
             self.press = (event.xdata, event.ydata)
+        # right mouse button --> start tracing the field from the clicked point
+        elif event.button == 3:
+            self.press = (event.xdata, event.ydata)
+            self.trace_curve()
 
     def on_motion(self, event):
         """Changes axes lims when moving_canvas"""
         if self.press is None or event.inaxes != self.plot.axes:
             return
+        self.moving_canvas = True
         xlast, ylast = self.press
 
-        if self.moving_canvas:
-            dx, dy = event.xdata - xlast, event.ydata - ylast
-            self.plot.axes.set_xlim([x - dx for x in self.plot.axes.get_xlim()])
-            self.plot.axes.set_ylim([y - dy for y in self.plot.axes.get_ylim()])
+        dx, dy = event.xdata - xlast, event.ydata - ylast
+        self.plot.axes.set_xlim([x - dx for x in self.plot.axes.get_xlim()])
+        self.plot.axes.set_ylim([y - dy for y in self.plot.axes.get_ylim()])
 
-            self.app.update_displayed_lims()
+        self.app.update_displayed_lims()
 
-            self.motion_counter += 1
-            if self.motion_counter % 10 == 0:
-                self.motion_counter = 0
-                self.draw_field(keep_cache=True)
-            else:
-                self.plot.figure.canvas.draw()
+        self.motion_counter += 1
+        if self.motion_counter % 10 == 0:
+            self.motion_counter = 0
+            self.draw_field(keep_cache=True)
+        else:
+            self.plot.figure.canvas.draw()
 
     def on_release(self, event):
         """Stops canvas movement or point movement."""
@@ -283,9 +287,46 @@ class DirectionFieldBuilder:
         self.plot.axes.set_ylim(ylim)
 
         # draw the axes
-        self.plot.axes.axvline(0, color="r", linewidth=1)
-        self.plot.axes.axhline(0, color="r", linewidth=1)
+        self.plot.axes.axvline(0, color="b", linewidth=1.5)
+        self.plot.axes.axhline(0, color="b", linewidth=1.5)
 
+        self.plot.figure.canvas.draw()
+
+    def trace_curve(self):
+        if self.press is None:
+            return
+        x, y = self.press
+
+        xlim = self.plot.axes.get_xlim()
+        ylim = self.plot.axes.get_ylim()
+        step = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2) / TRACE_GRANULARITY
+
+        def out_of_bounds(point):
+            return point[1] < ylim[0] or point[1] > ylim[1]
+
+        center = np.array([x, y])
+        line = []
+        out_of_bounds_counter = 0
+        while True:
+            line.append((center[0], center[1]))
+            try:
+                der = self.function(center[0], center[1])
+            except:
+                break
+            vector = np.array([1, der])
+            center += vector / np.linalg.norm(vector) * step
+            if center[0] > xlim[1]:
+                break
+
+            if out_of_bounds(center):
+                out_of_bounds_counter += 1
+                if out_of_bounds_counter > TRACE_GRANULARITY:
+                    break
+            else:
+                out_of_bounds_counter = 0
+
+        lc = LineCollection([line], color="r", linewidth=self.trace_lines_width)
+        self.plot.axes.add_collection(lc)
         self.plot.figure.canvas.draw()
 
 
@@ -336,6 +377,9 @@ class Canvas(FigureCanvas):
     def set_arrow_length(self, arrow_length):
         self.dfb.arrow_length = arrow_length
         self.redraw()
+
+    def set_trace_lines_width(self, trace_lines_width):
+        self.dfb.trace_lines_width = trace_lines_width
 
     def redraw(self, just_entered_new_function=False):
         self.dfb.draw_field(just_entered_new_function)
@@ -419,23 +463,47 @@ class MyApp(QWidget):
         self.sidebarLayout.addLayout(arrowLayout)
 
         # create the 'arrow length' slider
-        self.slider = QSlider(Qt.Horizontal)
-        self.slider.setMinimum(1)
-        self.slider.setMaximum(10)
-        self.slider.setValue(DEFAULT_ARROW_LENGTH)
-        self.slider.setMinimumWidth(150)
-        self.slider.setTickInterval(1)
-        self.slider.setSingleStep(1)
-        self.slider.setTickPosition(QSlider.TicksBelow)
-        self.slider.valueChanged.connect(self.changed_arrow_length)
-        self.label = QLabel()
-        self.label.setText(
+        self.slider_a = QSlider(Qt.Horizontal)
+        self.slider_a.setMinimum(1)
+        self.slider_a.setMaximum(10)
+        self.slider_a.setValue(DEFAULT_ARROW_LENGTH)
+        self.slider_a.setMinimumWidth(150)
+        self.slider_a.setTickInterval(1)
+        self.slider_a.setSingleStep(1)
+        self.slider_a.setTickPosition(QSlider.TicksBelow)
+        self.slider_a.valueChanged.connect(self.changed_arrow_length)
+        self.label_a = QLabel()
+        self.label_a.setText(
             f"  &Arrow length: {DEFAULT_ARROW_LENGTH}   "
         )  # spaces at end for padding
-        self.label.setBuddy(self.slider)  # changes focus to the slider if 'Alt+a' is pressed
+        self.label_a.setBuddy(
+            self.slider_a
+        )  # changes focus to the slider if 'Alt+a' is pressed
         form = QVBoxLayout()
-        form.addWidget(self.label)
-        form.addWidget(self.slider)
+        form.addWidget(self.label_a)
+        form.addWidget(self.slider_a)
+        self.sidebarLayout.addLayout(form)
+
+        # create the 'trace line width' slider
+        self.slider_w = QSlider(Qt.Horizontal)
+        self.slider_w.setMinimum(1)
+        self.slider_w.setMaximum(10)
+        self.slider_w.setValue(DEFAULT_TRACE_LINES_WIDTH)
+        self.slider_w.setMinimumWidth(150)
+        self.slider_w.setTickInterval(1)
+        self.slider_w.setSingleStep(1)
+        self.slider_w.setTickPosition(QSlider.TicksBelow)
+        self.slider_w.valueChanged.connect(self.changed_trace_lines_width)
+        self.label_w = QLabel()
+        self.label_w.setText(
+            f"  &Trace line width: {DEFAULT_TRACE_LINES_WIDTH}   "
+        )  # spaces at end for padding
+        self.label_w.setBuddy(
+            self.slider_w
+        )  # changes focus to the slider if 'Alt+t' is pressed
+        form = QVBoxLayout()
+        form.addWidget(self.label_w)
+        form.addWidget(self.slider_w)
         self.sidebarLayout.addLayout(form)
 
         # create the 'save image' button
@@ -628,10 +696,16 @@ class MyApp(QWidget):
 
     def changed_arrow_length(self):
         """Updates the arrow length according to the slider."""
-        arrow_length = self.slider.value()
-        self.label.setText(f"  &Arrow length: {arrow_length}   ")  # spaces at end for padding
+        arrow_length = self.slider_a.value()
+        self.label_a.setText(
+            f"  &Arrow length: {arrow_length}   "
+        )  # spaces at end for padding
         self.canvas.set_arrow_length(arrow_length)
         self.canvas.redraw()
+
+    def changed_trace_lines_width(self):
+        """Updates the trace lines width according to the slider."""
+        self.canvas.set_trace_lines_width(self.slider_w.value())
 
     def enable_input_lines(self, enabled):
         self.xmin_input.setEnabled(enabled)
