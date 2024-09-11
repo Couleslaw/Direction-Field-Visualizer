@@ -33,6 +33,9 @@ from math import (
     log2,
     log10,
     sqrt,
+    fabs,
+    floor,
+    ceil,
     asin,
     acos,
     atan,
@@ -47,6 +50,8 @@ from math import (
 )
 
 ln = log
+abs = fabs
+sign = lambda x: int((x > 0)) - int((x < 0))
 
 
 np.seterr(divide="raise", invalid="ignore")
