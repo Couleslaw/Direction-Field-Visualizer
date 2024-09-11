@@ -80,10 +80,6 @@ ZOOM = 2
 MAX_ZOOM = 5e-3
 
 
-# TODO:
-# more efficient arrow drawing - caching
-
-
 class DirectionFieldBuilder:
     """Plots direction fields using the matplotlib library."""
 
@@ -97,8 +93,7 @@ class DirectionFieldBuilder:
         self.function = create_function_from_string(DEFAULT_FUNCTION)
 
         self.motion_counter = 0
-        self.func_times = []
-        self.draw_times = []
+        self.arrows_cache = {}
 
     def connect(self):
         """Connect to all the events we need."""
@@ -123,7 +118,7 @@ class DirectionFieldBuilder:
         # left mouse button --> begin canvas movement
         elif event.button == 1:
             self.moving_canvas = True
-            self.draw_field()
+            self.draw_field(keep_cache=True)
             self.press = (event.xdata, event.ydata)
 
     def on_motion(self, event):
@@ -141,7 +136,8 @@ class DirectionFieldBuilder:
 
             self.motion_counter += 1
             if self.motion_counter % 10 == 0:
-                self.draw_field()
+                self.motion_counter = 0
+                self.draw_field(keep_cache=True)
             else:
                 self.plot.figure.canvas.draw()
 
@@ -152,7 +148,7 @@ class DirectionFieldBuilder:
 
         if self.moving_canvas:
             self.moving_canvas = False
-            self.draw_field()
+            self.draw_field(keep_cache=True)
         self.press = None
 
     def on_scroll(self, event):
@@ -185,12 +181,23 @@ class DirectionFieldBuilder:
         self.app.update_displayed_lims()
         self.draw_field()
 
-    def draw_field(self, just_entered_new_function=False):
+    def draw_field(self, just_entered_new_function=False, keep_cache=False):
         """Draws the direction field."""
+        if not keep_cache:
+            self.arrows_cache = {}
+
         xlim = self.plot.axes.get_xlim()  # save old lims
         ylim = self.plot.axes.get_ylim()
 
+        diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
+        vector_len = diagonal / 100 * self.arrow_length
+
+        # helper function for getting and arrow line passing through (x, y)
         def get_line(x, y, function):
+            # check cache
+            if (x, y) in self.arrows_cache:
+                return self.arrows_cache[(x, y)]
+
             def round_to_zero(n):
                 if abs(n) < 1e-10:
                     return 0
@@ -216,29 +223,24 @@ class DirectionFieldBuilder:
                 raise e
 
             center = np.array([x, y])
-            vector = vector / np.linalg.norm(vector)
+            vector = vector / np.linalg.norm(vector) * vector_len
 
-            diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
-            line_len = diagonal / 100 * self.arrow_length
-
-            return np.append(
-                center - vector * line_len / 2,
-                center + vector * line_len / 2,
-            )
+            res = np.append(center - vector / 2, vector)
+            self.arrows_cache[(x, y)] = res
+            return res
 
         xstep = (xlim[1] - xlim[0]) / self.num_arrows
         ystep = (ylim[1] - ylim[0]) / self.num_arrows
 
-        f = lambda n, s: s * (n // s)
-        xmargin = (self.num_arrows // 4) * xstep + (
+        xmargin = (self.num_arrows // 5) * xstep + (
             xstep / 2 if self.num_arrows % 2 == 0 else 0
         )
-        ymargin = (self.num_arrows // 4) * ystep
-        # xmargin = ymargin = 0
+        ymargin = (self.num_arrows // 5) * ystep
+
+        f = lambda n, s: s * (n // s)
         xs = np.arange(f(xlim[0], xstep) - xmargin, xlim[1] + xstep + xmargin, xstep)
         ys = np.arange(f(ylim[0], ystep) - ymargin, ylim[1] + ystep + ymargin, ystep)
 
-        # start = time.time()
         # try to get the arrows
         try:
             arrows = np.array(
@@ -258,28 +260,18 @@ class DirectionFieldBuilder:
             if just_entered_new_function:
                 raise e
 
-        # self.func_times.append(time.time() - start)
-        # start = time.time()
-
         self.plot.axes.cla()
 
         if len(arrows) == 4:
             self.plot.axes.quiver(
                 arrows[0],
                 arrows[1],
-                arrows[2] - arrows[0],
-                arrows[3] - arrows[1],
+                arrows[2],
+                arrows[3],
                 angles="xy",
                 scale_units="xy",
                 scale=1,
             )
-
-        # self.draw_times.append(time.time() - start)
-        # if len(self.func_times) == 10:
-        #     print("Function mean: ", sum(self.func_times) / 10)
-        #     print("Draw mean: ", sum(self.draw_times) / 10)
-        #     self.func_times = []
-        #     self.draw_times = []
 
         # set old lims
         self.plot.axes.set_xlim(xlim)
@@ -303,7 +295,7 @@ class Canvas(FigureCanvas):
         self.pyplot_code()
 
     def pyplot_code(self):
-        """Create the SplineCurvesBuilder object and set default parameters."""
+        """Create the DerectionFieldBuilder object and set default parameters."""
         self.ax.set_xlim(DEFAULT_XMIN, DEFAULT_XMAX)
         self.ax.set_ylim(DEFAULT_YMIN, DEFAULT_YMAX)
         self.ax.axvline(0, color="r", linewidth=1)
@@ -360,7 +352,7 @@ class MyApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setMinimumSize(1500, 800)
-        self.setWindowTitle("Spline curves")
+        self.setWindowTitle("Direction Field Visualizer")
 
         self.layout = QHBoxLayout()
         self.setLayout(self.layout)
