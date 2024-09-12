@@ -10,7 +10,7 @@ Let's see an example. Consider the differential equation $y'(x)=-x/y$. The direc
 
 ![circle](images/circle.svg)
 
-The tangent lines clearly form circles around the origin. The red semi-circles are two solutions to the differential equation. We can guess that the general solution is of the form $y(x)=\pm\sqrt{A-x^2}$ which is indeed the case.
+The tangent lines clearly form circles around the origin. The red semi-circles are two of the infinitely many solutions to the differential equation. We can guess that the general solution is of the form $y(x)=\pm\sqrt{A-x^2}$ which is indeed the case.
 
 This visualizer allows you to plot the direction field of a given differential equation. You can zoom in and out, move around and watch the direction field change in real time as well as tracing individual solution curves.
 
