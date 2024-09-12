@@ -69,14 +69,15 @@ def create_function_from_string(string):
     return eval(f"lambda x, y: {string}")
 
 
-TRACE_GRANULARITY = 1000
+TRACE_AUTO_DX_GRANULARITY = 10000
+TRACE_NUM_SEGMENTS_IN_DIAGONAL = 1000
 DEFAULT_TRACE_LINES_WIDTH = 4
 DEFAULT_MOUSE_LINE_WIDTH = 4
 
 # length = 1    ~  1 / 100  of the length of the diagonal
 # length = 10   ~  1 / 10   of the length of the diagonal
 DEFAULT_ARROW_LENGTH = 4
-DEFAULT_ARROW_WIDTH = 4
+DEFAULT_ARROW_WIDTH = 3
 DEFAULT_NUM_ARROWS = 21
 MAX_NUM_ARROWS = 100
 
@@ -103,6 +104,8 @@ class DirectionFieldBuilder:
         self.trace_lines_width = DEFAULT_TRACE_LINES_WIDTH
         self.mouse_line_width = DEFAULT_MOUSE_LINE_WIDTH
         self.function = create_function_from_string(DEFAULT_FUNCTION)
+        self.auto_trace_dx = True
+        self.trace_dx = None
 
         self.motion_counter = 0
         self.arrows_cache = {}
@@ -131,6 +134,7 @@ class DirectionFieldBuilder:
         elif event.button == 1:
             self.draw_field(keep_cache=True)
             self.press = (event.xdata, event.ydata)
+            self.moving_canvas = True
         # right mouse button --> start tracing the field from the clicked point
         elif event.button == 3:
             self.press = (event.xdata, event.ydata)
@@ -138,8 +142,11 @@ class DirectionFieldBuilder:
 
     def on_motion(self, event):
         """Changes axes lims when moving_canvas"""
+        # if outside of the matplotlib plot
         if event.inaxes != self.plot.axes:
+            # if a direction line is being drawn at the mouse location
             if self.last_mouse_line is not None:
+                # remove line - mouse is out of bounds
                 self.remove_mouse_line_from_plot()
                 self.plot.figure.canvas.draw()
                 self.last_mouse_line = None
@@ -147,12 +154,12 @@ class DirectionFieldBuilder:
 
         self.mouse_pos = (event.xdata, event.ydata)
 
+        # if a direction line is being drawn at the mouse location --> redraw after movement
         if self.drawing_mouse_line:
             self.draw_mouse_line()
-        if self.press is None:
+        if self.press is None or not self.moving_canvas:
             return
 
-        self.moving_canvas = True
         xlast, ylast = self.press
 
         dx, dy = event.xdata - xlast, event.ydata - ylast
@@ -313,48 +320,203 @@ class DirectionFieldBuilder:
             self.draw_mouse_line()
         self.plot.figure.canvas.draw()
 
+    def get_auto_dx(self):
+        xlim = self.plot.axes.get_xlim()
+        return (xlim[1] - xlim[0]) / TRACE_AUTO_DX_GRANULARITY
+
     def trace_curve(self):
+        """Draws a solution curve passing through self.press"""
         if self.press is None:
             return
+
         x, y = self.press
-
-        xlim = self.plot.axes.get_xlim()
         ylim = self.plot.axes.get_ylim()
-        step = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2) / TRACE_GRANULARITY
+        xlim = self.plot.axes.get_xlim()
 
-        def out_of_bounds(point):
-            return point[1] < ylim[0] or point[1] > ylim[1]
+        # the curves are made out of line segments of this length
+        min_segment_length = (
+            np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
+            / TRACE_NUM_SEGMENTS_IN_DIAGONAL
+        )
 
-        center = np.array([x, y])
-        line = []
-        out_of_bounds_counter = 0
-        small_dx_counter = 0
-        while True:
-            line.append((center[0], center[1]))
-            try:
-                der = self.function(center[0], center[1])
-            except:
-                break
-            vector = np.array([1, der])
-            vector = vector / np.linalg.norm(vector) * step
-            center += vector
-            if center[0] > xlim[1]:
-                break
+        dx = self.get_auto_dx() if self.auto_trace_dx else self.trace_dx
 
-            if vector[0] < step / 100:
-                small_dx_counter += 1
-                if small_dx_counter > 100:
+        def trace(x, y, trace_forward: bool):
+            line = [(x, y)]
+            center = np.array([x, y])
+            segment_length = 0
+
+            UNKNOWN = 0
+            STOP = 1
+            INFINITE = 2
+            CONTINUE = 3
+
+            singularity_dx = min(1e-6, dx / 1000)
+
+            def handle_singularity(x, y):
+                dx = singularity_dx * (1 if trace_forward else -1)
+                sdx = dx**2
+
+                try:
+                    slope = self.function(x, y)
+                    if slope > 1e10:
+                        return INFINITE
+                    nx, ny = x + dx, y + dx * slope
+                    nslope = self.function(nx, ny)
+                    second_der = (self.function(nx + sdx, ny + sdx * nslope) - nslope) / sdx
+                except:
+                    return UNKNOWN
+
+                def continue_or_stop():
+                    vector = np.array([1, slope]) * dx / 5
+                    return CONTINUE if is_monotonous_on(np.array([x, y]), vector, 10) else STOP
+
+                def continue_or_infinite():
+                    vector = np.array([1, slope]) * dx / 5
+                    return (
+                        CONTINUE
+                        if is_monotonous_on(np.array([x, y]), vector, 10)
+                        else INFINITE
+                    )
+
+                # convex up - forward
+                if slope > 0 and dx > 0:
+                    # second_der > 0 & nslope < 0 --> convex down
+                    if second_der > 0 and nslope < 0:
+                        print("convex down")
+                        return INFINITE
+                    # second_der > 0 & nslope > 0 --> convex up
+                    if second_der > 0 and nslope > 0:
+                        return continue_or_stop()
+                    # second_der < 0 & nslope > 0 --> concave up
+                    if second_der < 0 and nslope > 0:
+                        return continue_or_infinite()
+                    # second_der < 0 & nslope < 0 --> concave down
+                    if second_der < 0 and nslope < 0:
+                        return STOP
+
+                # concave down - forward
+                if slope < 0 and dx > 0:
+                    # second_der > 0 & nslope < 0 --> convex down
+                    if second_der > 0 and nslope < 0:
+                        print("inf, conved down")
+                        return continue_or_infinite()
+                    # second_der > 0 & nslope > 0 --> convex up
+                    if second_der > 0 and nslope > 0:
+                        print("concave down")
+                        return STOP
+                    # second_der < 0 & nslope > 0 --> concave up
+                    if second_der < 0 and nslope > 0:
+                        print("INF, concave up")
+                        return INFINITE
+                    # second_der < 0 & nslope < 0 --> concave down
+                    if second_der < 0 and nslope < 0:
+                        print("inf, concave down")
+                        return continue_or_stop()
+
+                # concave up - backward
+                if slope > 0 and dx < 0:
+                    # second_der > 0 & nslope < 0 --> convex down
+                    if second_der > 0 and nslope < 0:
+                        print("stop concave up")
+                        return STOP
+                    # second_der > 0 & nslope > 0 --> convex up
+                    if second_der > 0 and nslope > 0:
+                        # print("concave up - second_der > 0")
+                        return continue_or_infinite()
+                    # second_der < 0 & nslope > 0 --> concave up
+                    if second_der < 0 and nslope > 0:
+                        # print("concave up - second_der < 0", slope, nslope)
+                        return continue_or_stop()
+                    # second_der < 0 & nslope < 0 --> concave down
+                    if second_der < 0 and nslope < 0:
+                        return INFINITE
+
+                # convex down - backward
+                if slope < 0 and dx < 0:
+                    # second_der > 0 & nslope < 0 --> convex down
+                    if second_der > 0 and nslope < 0:
+                        return continue_or_stop()
+                    # second_der > 0 & nslope > 0 --> convex up
+                    if second_der > 0 and nslope > 0:
+                        return INFINITE
+                    # second_der < 0 & nslope > 0 --> concave up
+                    if second_der < 0 and nslope > 0:
+                        return STOP
+                    # second_der < 0 & nslope < 0 --> concave down
+                    if second_der < 0 and nslope < 0:
+                        return continue_or_infinite()
+
+                if second_der == 0:
+                    return CONTINUE
+                return UNKNOWN
+
+            def is_monotonous_on(start, vector, num):
+                sgn = sign(self.function(start[0], start[1]))
+                for _ in range(num):
+                    start += vector
+                    if sign(self.function(start[0], start[1])) != sgn:
+                        return False
+                return True
+
+            singularity_count = 0
+            num_skips = 0
+            while True:
+                try:
+                    der = self.function(center[0], center[1])
+                    vector = np.array([1, der]) * dx * (1 if trace_forward else -1)
+                except:
                     break
-            else:
-                small_dx_counter = 0
 
-            if out_of_bounds(center):
-                out_of_bounds_counter += 1
-                if out_of_bounds_counter > TRACE_GRANULARITY:
+                if (slope := abs(vector[1] / vector[0])) > 100:
+                    res = handle_singularity(center[0], center[1])
+                    print(res, center[0])
+                    if res == UNKNOWN or res == STOP:
+                        break
+                    if res == INFINITE:
+                        vector = np.array([0, 1 if slope > 0 else -1])
+                        last = center + vector * (ylim[1] - ylim[0])
+                        line.append(last)
+                        break
+                    if res == CONTINUE:
+                        singularity_count += 1
+                        if not (
+                            singularity_count % 10 == 0
+                            and is_monotonous_on(np.copy(center), vector / 5, 10)
+                        ):
+                            vector = vector / abs(vector[0]) * singularity_dx
+                        else:
+                            print("skipped")
+                    else:
+                        singularity_count = 0
+                else:
+                    singularity_count = 0
+
+                center += vector
+                if center[0] < xlim[0] or center[0] > xlim[1]:
                     break
-            else:
-                out_of_bounds_counter = 0
-        lc = LineCollection([line], color="r", linewidth=self.trace_lines_width)
+
+                screen_height = ylim[1] - ylim[0]
+                if (
+                    center[1] > ylim[1] + 20 * screen_height
+                    or center[1] < ylim[0] - 20 * screen_height
+                ):
+                    break
+
+                segment_length += np.linalg.norm(vector)
+                if segment_length > min_segment_length:
+                    line.append((center[0], center[1]))
+                    segment_length = 0
+
+            return line
+
+        # trace right and left from the center point
+        right_line = trace(x, y, trace_forward=True)
+        left_line = trace(x, y, trace_forward=False)
+
+        lc = LineCollection(
+            [left_line, right_line], color="r", linewidth=self.trace_lines_width
+        )
         self.plot.axes.add_collection(lc)
         self.plot.figure.canvas.draw()
 
@@ -520,8 +682,10 @@ class MyApp(QWidget):
 
         self.plus_arrows = QPushButton("+")
         self.plus_arrows.clicked.connect(self.add_more_arrows)
+        self.plus_arrows.setShortcut("Alt+right")
         self.minus_arrows = QPushButton("-")
         self.minus_arrows.clicked.connect(self.remove_some_arrows)
+        self.minus_arrows.setShortcut("Alt+left")
 
         arrowLayout = QHBoxLayout()
         arrowLayout.addWidget(self.plus_arrows)
