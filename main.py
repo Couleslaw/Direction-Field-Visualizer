@@ -218,14 +218,6 @@ class DirectionFieldBuilder:
         if (x, y) in self.arrows_cache:
             return self.arrows_cache[(x, y)]
 
-        def round_to_zero(n):
-            if abs(n) < 1e-10:
-                return 0
-            return n
-
-        x = round_to_zero(x)
-        y = round_to_zero(y)
-
         try:
             der = self.function(x, y)
             vector = np.array([1, der])
@@ -266,7 +258,9 @@ class DirectionFieldBuilder:
         xmargin = (self.num_arrows // 5) * xstep + (
             xstep / 2 if self.num_arrows % 2 == 0 else 0
         )
-        ymargin = (self.num_arrows // 5) * ystep
+        ymargin = (self.num_arrows // 5) * ystep + (
+            ystep / 2 if self.num_arrows % 2 == 0 else 0
+        )
 
         f = lambda n, s: s * (n // s)
         xs = np.arange(f(xlim[0], xstep) - xmargin, xlim[1] + xstep + xmargin, xstep)
@@ -334,6 +328,7 @@ class DirectionFieldBuilder:
         center = np.array([x, y])
         line = []
         out_of_bounds_counter = 0
+        small_dx_counter = 0
         while True:
             line.append((center[0], center[1]))
             try:
@@ -341,9 +336,17 @@ class DirectionFieldBuilder:
             except:
                 break
             vector = np.array([1, der])
-            center += vector / np.linalg.norm(vector) * step
+            vector = vector / np.linalg.norm(vector) * step
+            center += vector
             if center[0] > xlim[1]:
                 break
+
+            if vector[0] < step / 100:
+                small_dx_counter += 1
+                if small_dx_counter > 100:
+                    break
+            else:
+                small_dx_counter = 0
 
             if out_of_bounds(center):
                 out_of_bounds_counter += 1
@@ -351,7 +354,6 @@ class DirectionFieldBuilder:
                     break
             else:
                 out_of_bounds_counter = 0
-
         lc = LineCollection([line], color="r", linewidth=self.trace_lines_width)
         self.plot.axes.add_collection(lc)
         self.plot.figure.canvas.draw()
