@@ -6,6 +6,12 @@ $$\frac{dy}{dx} = f(x,y).$$
 
 The principle of the direction field is to draw small line segments each point $(x,y)$ in the plane. The slope of the line segment is given by the derivative, that is $f(x,y)$. The direction field can be used to visualize the behavior of solutions to the differential equation because these line segments are tangent to the solution curves.
 
+Let's see an example. Consider the differential equation $y'(x)=-x/y$. The direction field looks like this:
+
+![circle](images/circle.svg)
+
+The tangent lines clearly form circles around the origin. The red semi-circles are two solutions to the differential equation. We can guess that the general solution is of the form $y(x)=\pm\sqrt{A-x^2}$ which is indeed the case.
+
 This visualizer allows you to plot the direction field of a given differential equation. You can zoom in and out, move around and watch the direction field change in real time as well as tracing individual solution curves.
 
 ## How to install
@@ -32,16 +38,7 @@ python3 main.py
 
 Deactivate the virtual environment by running `deactivate`.
 
-## User documentation
-
-### Movement in the figure
-
-- The graph can be moved by left-clicking and dragging.
-- You can also zoom in and out using the scroll wheel.
-
-### Tracing a solution curve
-
-- To trace a solution curve, right-click on the point where you want to start.
+## Usage
 
 ### Entering the differential equation
 
@@ -55,10 +52,29 @@ Deactivate the virtual environment by running `deactivate`.
 
 - Confirm the differential equation by pressing the 'Enter' key or by clicking the 'Graph' button.
 
+### Movement in the figure
+
+- The graph can be moved by left-clicking and dragging.
+- You can also zoom in and out using the scroll wheel.
+
+### Tracing a solution curve
+
+- To trace a solution curve, right-click on the point where you want to start.
+
+![trace example](images/trace_curve.svg)
+
+### Drawing a slope line at the cursor position
+
+- To draw a slope line at the cursor position, toggle 'Mouse line' on. It is off by default.
+
+![mouse line example](images/mouse_line.gif)
+
 ### Changing graph parameters
 
 - The number of arrows drawn can by change either by entering a number or by clicking the `+` and `-` buttons which change the value by 5.
 - It is also possible to change the length of the arrows.
+
+![showcase](images/showcase.gif)
 
 ### Exporting the figure
 
@@ -68,7 +84,3 @@ Deactivate the virtual environment by running `deactivate`.
 
 - By default 'Equal axes' is toggled, but you can untoggle it to change the limits independently.
 - You can't change limits manually while 'Equal axes' is toggled.
-
-## Examples
-
-ln(sqrt(sin(x)\*sin(y)))
