@@ -75,7 +75,7 @@ Deactivate the virtual environment by running `deactivate`.
 
 ### Changing graph parameters
 
-- The number of arrows drawn can by change either by entering a number or by clicking the `+` and `-` buttons which change the value by 5
+- The number of arrows drawn can by changed either by entering a number or by clicking the `+` and `-` buttons which change the value by 5
 - It is also possible to change the width and the length of the arrows
 
 ![showcase](images/overall_showcase.gif)
