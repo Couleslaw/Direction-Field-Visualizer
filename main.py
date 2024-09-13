@@ -31,7 +31,7 @@ class MyApp(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setMinimumSize(1600, 800)
+        self.setMinimumSize(1600, 1000)
         self.setWindowTitle("Direction Field Visualizer")
 
         self.layout = QHBoxLayout()
