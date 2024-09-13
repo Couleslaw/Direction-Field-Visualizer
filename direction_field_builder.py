@@ -37,7 +37,7 @@ abs = fabs
 sign = lambda x: int((x > 0)) - int((x < 0))
 
 ZOOM = 2
-MAX_ZOOM = 5e-3
+MAX_ZOOM = 1e-3
 
 TRACE_AUTO_DX_GRANULARITY = 10000
 TRACE_NUM_SEGMENTS_IN_DIAGONAL = 1000
@@ -222,7 +222,7 @@ class DirectionFieldBuilder:
         ylim = self.plot.axes.get_ylim()
 
         diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
-        vector_len = diagonal / 100 * self.arrow_length
+        vector_len = diagonal / 200 * self.arrow_length
 
         xstep = (xlim[1] - xlim[0]) / self.num_arrows
         ystep = (ylim[1] - ylim[0]) / self.num_arrows

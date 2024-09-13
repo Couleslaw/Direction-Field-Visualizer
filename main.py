@@ -95,8 +95,8 @@ class MyApp(QWidget):
         self.minus_arrows.setShortcut("Alt+left")
 
         arrowLayout = QHBoxLayout()
-        arrowLayout.addWidget(self.plus_arrows)
         arrowLayout.addWidget(self.minus_arrows)
+        arrowLayout.addWidget(self.plus_arrows)
 
         self.sidebarLayout.addLayout(form)
         self.sidebarLayout.addLayout(arrowLayout)
@@ -104,7 +104,7 @@ class MyApp(QWidget):
         # create the 'arrow length' slider
         self.slider_a = QSlider(Qt.Horizontal)
         self.slider_a.setMinimum(1)
-        self.slider_a.setMaximum(10)
+        self.slider_a.setMaximum(15)
         self.slider_a.setValue(DEFAULT_ARROW_LENGTH)
         self.slider_a.setMinimumWidth(150)
         self.slider_a.setTickInterval(1)
@@ -456,7 +456,7 @@ class MyApp(QWidget):
     def changed_trace_lines_width(self):
         """Updates the trace lines width according to the slider."""
         width = self.slider_w.value()
-        self.label_a.setText(f"  &Trace lines width: {width}")
+        self.label_w.setText(f"  &Trace lines width: {width}")
         self.canvas.set_trace_lines_width(width)
 
     def changed_mouse_line_width(self):

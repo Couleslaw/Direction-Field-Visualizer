@@ -4,9 +4,8 @@ MIN_TRACE_DX = 1e-9
 DEFAULT_MOUSE_LINE_WIDTH = 4
 DEFAULT_MOUSE_LINE_LENGTH = 4
 
-# length = 1    ~  1 / 100  of the length of the diagonal
-# length = 10   ~  1 / 10   of the length of the diagonal
-DEFAULT_ARROW_LENGTH = 4
+# length = 1    ~  1 / 200  of the length of the diagonal
+DEFAULT_ARROW_LENGTH = 8
 DEFAULT_ARROW_WIDTH = 3
 DEFAULT_NUM_ARROWS = 21
 MAX_NUM_ARROWS = 100
