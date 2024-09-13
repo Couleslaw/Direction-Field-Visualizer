@@ -504,8 +504,6 @@ class DirectionFieldBuilder:
         diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
         vector_len = diagonal / 100 * self.mouse_line_length * 1.7
 
-        print(vector_len)
-
         # remove the old arrow
         self.remove_mouse_line_from_plot()
 
@@ -526,5 +524,4 @@ class DirectionFieldBuilder:
         self.last_mouse_line = self.plot.axes.plot(
             [x1, x2], [y1, y2], color="r", linewidth=self.mouse_line_width
         )
-        print("drawing", x1, x2, y1, y2)
         self.plot.figure.canvas.draw()
