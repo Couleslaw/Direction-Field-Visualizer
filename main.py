@@ -73,6 +73,7 @@ TRACE_AUTO_DX_GRANULARITY = 10000
 TRACE_NUM_SEGMENTS_IN_DIAGONAL = 1000
 DEFAULT_TRACE_LINES_WIDTH = 4
 DEFAULT_MOUSE_LINE_WIDTH = 4
+DEFAULT_MOUSE_LINE_LENGTH = 4
 
 # length = 1    ~  1 / 100  of the length of the diagonal
 # length = 10   ~  1 / 10   of the length of the diagonal
@@ -103,9 +104,10 @@ class DirectionFieldBuilder:
         self.arrow_width = DEFAULT_ARROW_WIDTH
         self.trace_lines_width = DEFAULT_TRACE_LINES_WIDTH
         self.mouse_line_width = DEFAULT_MOUSE_LINE_WIDTH
+        self.mouse_line_length = DEFAULT_MOUSE_LINE_LENGTH
         self.function = create_function_from_string(DEFAULT_FUNCTION)
         self.auto_trace_dx = True
-        self.trace_dx = None
+        self.trace_dx = 0.01
 
         self.motion_counter = 0
         self.arrows_cache = {}
@@ -213,16 +215,17 @@ class DirectionFieldBuilder:
         self.plot.axes.set_xlim(xlim)
         self.plot.axes.set_ylim(ylim)
         self.app.update_displayed_lims()
+        self.app.update_displayed_trace_dx()
         self.draw_field()
 
-    def get_arrow(self, x, y, arrow_len):
+    def get_arrow(self, x, y, arrow_len, use_cache=True):
         """
         x, y: center of the arrow
         returns: [s1, s2, v1, v2] where (s1, s2) is the start of the arrow and (v1, v2) is the vector of the arrow
         """
 
         # check cache
-        if (x, y) in self.arrows_cache:
+        if use_cache and (x, y) in self.arrows_cache:
             return self.arrows_cache[(x, y)]
 
         try:
@@ -245,7 +248,8 @@ class DirectionFieldBuilder:
         vector = vector / np.linalg.norm(vector) * arrow_len
 
         res = np.append(center - vector / 2, vector)
-        self.arrows_cache[(x, y)] = res
+        if use_cache:
+            self.arrows_cache[(x, y)] = res
         return res
 
     def draw_field(self, just_entered_new_function=False, keep_cache=False):
@@ -341,117 +345,15 @@ class DirectionFieldBuilder:
 
         dx = self.get_auto_dx() if self.auto_trace_dx else self.trace_dx
 
-        def trace(x, y, trace_forward: bool):
-            line = [(x, y)]
-            center = np.array([x, y])
-            segment_length = 0
-
-            UNKNOWN = 0
-            STOP = 1
-            INFINITE = 2
-            CONTINUE = 3
-
-            singularity_dx = min(1e-6, dx / 1000)
-
-            def handle_singularity(x, y):
-                dx = singularity_dx * (1 if trace_forward else -1)
-                sdx = dx**2
-
-                try:
-                    slope = self.function(x, y)
-                    if slope > 1e10:
-                        return INFINITE
-                    nx, ny = x + dx, y + dx * slope
-                    nslope = self.function(nx, ny)
-                    second_der = (self.function(nx + sdx, ny + sdx * nslope) - nslope) / sdx
-                except:
-                    return UNKNOWN
-
-                def continue_or_stop():
-                    vector = np.array([1, slope]) * dx / 5
-                    return CONTINUE if is_monotonous_on(np.array([x, y]), vector, 10) else STOP
-
-                def continue_or_infinite():
-                    vector = np.array([1, slope]) * dx / 5
-                    return (
-                        CONTINUE
-                        if is_monotonous_on(np.array([x, y]), vector, 10)
-                        else INFINITE
-                    )
-
-                # convex up - forward
-                if slope > 0 and dx > 0:
-                    # second_der > 0 & nslope < 0 --> convex down
-                    if second_der > 0 and nslope < 0:
-                        print("convex down")
-                        return INFINITE
-                    # second_der > 0 & nslope > 0 --> convex up
-                    if second_der > 0 and nslope > 0:
-                        return continue_or_stop()
-                    # second_der < 0 & nslope > 0 --> concave up
-                    if second_der < 0 and nslope > 0:
-                        return continue_or_infinite()
-                    # second_der < 0 & nslope < 0 --> concave down
-                    if second_der < 0 and nslope < 0:
-                        return STOP
-
-                # concave down - forward
-                if slope < 0 and dx > 0:
-                    # second_der > 0 & nslope < 0 --> convex down
-                    if second_der > 0 and nslope < 0:
-                        print("inf, conved down")
-                        return continue_or_infinite()
-                    # second_der > 0 & nslope > 0 --> convex up
-                    if second_der > 0 and nslope > 0:
-                        print("concave down")
-                        return STOP
-                    # second_der < 0 & nslope > 0 --> concave up
-                    if second_der < 0 and nslope > 0:
-                        print("INF, concave up")
-                        return INFINITE
-                    # second_der < 0 & nslope < 0 --> concave down
-                    if second_der < 0 and nslope < 0:
-                        print("inf, concave down")
-                        return continue_or_stop()
-
-                # concave up - backward
-                if slope > 0 and dx < 0:
-                    # second_der > 0 & nslope < 0 --> convex down
-                    if second_der > 0 and nslope < 0:
-                        print("stop concave up")
-                        return STOP
-                    # second_der > 0 & nslope > 0 --> convex up
-                    if second_der > 0 and nslope > 0:
-                        # print("concave up - second_der > 0")
-                        return continue_or_infinite()
-                    # second_der < 0 & nslope > 0 --> concave up
-                    if second_der < 0 and nslope > 0:
-                        # print("concave up - second_der < 0", slope, nslope)
-                        return continue_or_stop()
-                    # second_der < 0 & nslope < 0 --> concave down
-                    if second_der < 0 and nslope < 0:
-                        return INFINITE
-
-                # convex down - backward
-                if slope < 0 and dx < 0:
-                    # second_der > 0 & nslope < 0 --> convex down
-                    if second_der > 0 and nslope < 0:
-                        return continue_or_stop()
-                    # second_der > 0 & nslope > 0 --> convex up
-                    if second_der > 0 and nslope > 0:
-                        return INFINITE
-                    # second_der < 0 & nslope > 0 --> concave up
-                    if second_der < 0 and nslope > 0:
-                        return STOP
-                    # second_der < 0 & nslope < 0 --> concave down
-                    if second_der < 0 and nslope < 0:
-                        return continue_or_infinite()
-
-                if second_der == 0:
-                    return CONTINUE
-                return UNKNOWN
+        def trace(trace_forward: bool):
+            """
+            Helper function for tracing right (forward) and left (backward) from the selected point
+            Returns a list containing points that define the resulting curve
+            """
 
             def is_monotonous_on(start, vector, num):
+                # self.function gives the slope of the tangent line at a given point
+                # --> if > 0: increasing function, if < 0: decreasing function
                 sgn = sign(self.function(start[0], start[1]))
                 for _ in range(num):
                     start += vector
@@ -459,50 +361,152 @@ class DirectionFieldBuilder:
                         return False
                 return True
 
-            singularity_count = 0
-            num_skips = 0
+            # possible results of singularity handling
+            UNKNOWN = 0
+            STOP = 1
+            INFINITE = 2
+            CONTINUE = 3
+
+            # singularity ~ infinite growth --> dx needs to be very small
+            singularity_dx = min(1e-6, dx / 1000) * (1 if trace_forward else -1)
+
+            def handle_singularity(x, y):
+                """
+                This method is called when the derivative is very high.
+                It analyzes the situation and returns an instruction what to do next
+                - UNKNOWN = something weird is going on
+                - STOP = end curve tracing in this direction
+                - CONTINUE = continue tracing but with caution
+                - INFINITE = this is a singularity, let the curve go to infinity
+                """
+
+                # this is in a try block because function() could raise an exception
+                try:
+                    # get derivative at (x,y)
+                    slope = self.function(x, y)
+                    if slope > 1e10:  # if its insanely high --> go to infinity
+                        return INFINITE
+                    # move in the direction of the derivative
+                    nx, ny = x + singularity_dx, y + singularity_dx * slope
+                    # we are hopefully on the other side of the singularity now
+                    # 1. calculate the derivative here
+                    nslope = self.function(nx, ny)
+                    # 2. calculate the second derivative here
+                    second_der_dx = singularity_dx**2
+                    second_der = (
+                        self.function(nx + second_der_dx, ny + second_der_dx * nslope) - nslope
+                    ) / second_der_dx
+                except:
+                    return UNKNOWN
+
+                # if the function is not monotonous in the direction of the derivative
+                # something is most probably going on because
+                # - this is either a singularity --> STOP/INFINITE
+                # - or just a really steep function --> then it would be monotonous
+                def can_continue():
+                    vector = np.array([1, slope]) * singularity_dx
+                    return is_monotonous_on(np.array([x, y]), vector / 5, 10)
+
+                # convex up - forward
+                if slope > 0 and singularity_dx > 0:
+                    if second_der > 0 and nslope < 0:  # convex down
+                        return INFINITE
+                    if second_der > 0 and nslope > 0:  # convex up
+                        return CONTINUE if can_continue() else STOP
+                    if second_der < 0 and nslope > 0:  # concave up
+                        return CONTINUE if can_continue() else INFINITE
+                    if second_der < 0 and nslope < 0:  # concave down
+                        return STOP
+
+                # concave down - forward
+                if slope < 0 and singularity_dx > 0:
+                    if second_der > 0 and nslope < 0:  # convex down
+                        return CONTINUE if can_continue() else INFINITE
+                    if second_der > 0 and nslope > 0:  # convex up
+                        return STOP
+                    if second_der < 0 and nslope > 0:  # concave up
+                        return INFINITE
+                    if second_der < 0 and nslope < 0:  # concave down
+                        return CONTINUE if can_continue() else STOP
+
+                # concave up - backward
+                if slope > 0 and singularity_dx < 0:
+                    if second_der > 0 and nslope < 0:  # convex down
+                        return STOP
+                    if second_der > 0 and nslope > 0:  # convex up
+                        return CONTINUE if can_continue() else INFINITE
+                    if second_der < 0 and nslope > 0:  # concave up
+                        return CONTINUE if can_continue() else STOP
+                    if second_der < 0 and nslope < 0:  # concave down
+                        return INFINITE
+
+                # convex down - backward
+                if slope < 0 and singularity_dx < 0:
+                    if second_der > 0 and nslope < 0:  # convex down
+                        return CONTINUE if can_continue() else STOP
+                    if second_der > 0 and nslope > 0:  # convex up
+                        return INFINITE
+                    if second_der < 0 and nslope > 0:  # concave up
+                        return STOP
+                    if second_der < 0 and nslope < 0:  # concave down
+                        return CONTINUE if can_continue() else INFINITE
+
+                if second_der == 0:
+                    return CONTINUE
+                return UNKNOWN
+
+            line = [(x, y)]  # array for storing points on the curve
+            center = np.array([x, y])  # center point
+            segment_length = 0  # total length of the current segment
+
+            # how many CONTINUEs were there in a row
+            continue_count = 0
             while True:
                 try:
+                    # get the direction vector
                     der = self.function(center[0], center[1])
                     vector = np.array([1, der]) * dx * (1 if trace_forward else -1)
                 except:
                     break
 
-                if (slope := abs(vector[1] / vector[0])) > 100:
-                    res = handle_singularity(center[0], center[1])
-                    print(res, center[0])
-                    if res == UNKNOWN or res == STOP:
+                # if the slope is very high --> there might be a singularity
+                if fabs(der) > 100:
+                    result = handle_singularity(center[0], center[1])
+
+                    if result == UNKNOWN or result == STOP:
                         break
-                    if res == INFINITE:
-                        vector = np.array([0, 1 if slope > 0 else -1])
-                        last = center + vector * (ylim[1] - ylim[0])
-                        line.append(last)
+                    if result == INFINITE:
+                        # the last line segment should go off the screen
+                        line.append(center + np.array([0, sign(der)]) * (ylim[1] - ylim[0]))
                         break
-                    if res == CONTINUE:
-                        singularity_count += 1
-                        if not (
-                            singularity_count % 10 == 0
-                            and is_monotonous_on(np.copy(center), vector / 5, 10)
+                    if result == CONTINUE:
+                        continue_count += 1
+                        # if there was 10 CONTINUEs in a row and the function seems to be monotonous in the near future
+                        if continue_count % 10 == 0 and is_monotonous_on(
+                            np.copy(center), vector / 5, 10
                         ):
-                            vector = vector / abs(vector[0]) * singularity_dx
+                            pass  # assume that there is no singularity --> this is to speed things up
                         else:
-                            print("skipped")
+                            # make the next step only 'singularity_dx' long --> it should be safe there
+                            vector = vector / vector[0] * singularity_dx
                     else:
-                        singularity_count = 0
+                        # result is not CONTINUE --> reset counter
+                        continue_count = 0
                 else:
-                    singularity_count = 0
+                    # no singularity --> reset counter
+                    continue_count = 0
 
                 center += vector
+                # if x is out of bounds --> we are done
                 if center[0] < xlim[0] or center[0] > xlim[1]:
                     break
 
+                # if y is out of bounds --> let it go for a while, it might come back
                 screen_height = ylim[1] - ylim[0]
-                if (
-                    center[1] > ylim[1] + 20 * screen_height
-                    or center[1] < ylim[0] - 20 * screen_height
-                ):
+                if fabs(center[1] - ylim[0]) > 20 * screen_height:
                     break
 
+                # add a new point if the segment has reached the desired length
                 segment_length += np.linalg.norm(vector)
                 if segment_length > min_segment_length:
                     line.append((center[0], center[1]))
@@ -511,8 +515,8 @@ class DirectionFieldBuilder:
             return line
 
         # trace right and left from the center point
-        right_line = trace(x, y, trace_forward=True)
-        left_line = trace(x, y, trace_forward=False)
+        right_line = trace(trace_forward=True)
+        left_line = trace(trace_forward=False)
 
         lc = LineCollection(
             [left_line, right_line], color="r", linewidth=self.trace_lines_width
@@ -521,34 +525,47 @@ class DirectionFieldBuilder:
         self.plot.figure.canvas.draw()
 
     def remove_mouse_line_from_plot(self):
+        """Tries to remove the direction line drawn at the mouse cursor location"""
         if self.last_mouse_line is not None:
             try:
                 self.plot.axes.lines.remove(self.last_mouse_line[0])
             except:
-                pass
-            else:
-                self.plot.figure.canvas.draw()
+                return
+            self.plot.figure.canvas.draw()
 
     def draw_mouse_line(self):
+        """Draws a direction line at the mouse cursor location"""
         if self.mouse_pos is None:
             return
 
         xlim = self.plot.axes.get_xlim()
         ylim = self.plot.axes.get_ylim()
         diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
-        vector_len = diagonal / 100 * self.arrow_length * 1.7
-        line_info = self.get_arrow(self.mouse_pos[0], self.mouse_pos[1], vector_len)
+        vector_len = diagonal / 100 * self.mouse_line_length * 1.7
+
+        print(vector_len)
+
+        # remove the old arrow
+        self.remove_mouse_line_from_plot()
+
+        # calculate coordinates of the new arrow
+        line_info = self.get_arrow(
+            self.mouse_pos[0], self.mouse_pos[1], vector_len, use_cache=False
+        )
+
+        # if the mouse cursor is in an area where the function is not defined --> return
         if line_info is None:
-            self.remove_mouse_line_from_plot()
             return
+
+        # create the new arrow
         x1 = line_info[0]
         y1 = line_info[1]
         x2 = x1 + line_info[2]
         y2 = y1 + line_info[3]
-        self.remove_mouse_line_from_plot()
         self.last_mouse_line = self.plot.axes.plot(
             [x1, x2], [y1, y2], color="r", linewidth=self.mouse_line_width
         )
+        print("drawing", x1, x2, y1, y2)
         self.plot.figure.canvas.draw()
 
 
@@ -602,8 +619,14 @@ class Canvas(FigureCanvas):
     def set_trace_lines_width(self, trace_lines_width):
         self.dfb.trace_lines_width = trace_lines_width
 
+    def set_trace_lines_dx(self, dx):
+        self.dfb.trace_dx = dx
+
     def set_mouse_line_width(self, mouse_line_width):
         self.dfb.mouse_line_width = mouse_line_width
+
+    def set_mouse_line_length(self, mouse_line_length):
+        self.dfb.mouse_line_length = mouse_line_length
 
     def redraw(self, just_entered_new_function=False):
         self.dfb.draw_field(just_entered_new_function)
@@ -652,23 +675,23 @@ class MyApp(QWidget):
         form.addRow(
             "  y'(x) =", self.function_input
         )  # spaces at the beginning are for additional padding
+        self.sidebarLayout.addLayout(form)
 
+        graphLayout = QHBoxLayout()
         self.graph_button = QPushButton("Graph")
         self.graph_button.clicked.connect(self.execute_graph_function)
         self.graph_button.setShortcut("Return")
-        graphLayout = QVBoxLayout()
-        graphLayout.addLayout(form)
         graphLayout.addWidget(self.graph_button)
-        self.sidebarLayout.addLayout(graphLayout)
 
         # create the 'save image' button
         self.save_button = QPushButton("&Save image")
         self.save_button.clicked.connect(self.show_save_file_dialog)
-        self.sidebarLayout.addWidget(self.save_button)
         self.save_button.setShortcut("Ctrl+S")
+        graphLayout.addWidget(self.save_button)
+        self.sidebarLayout.addLayout(graphLayout)
 
         # add space
-        spacer = QSpacerItem(20, 80, QSizePolicy.Minimum)
+        spacer = QSpacerItem(20, 70, QSizePolicy.Minimum, QSizePolicy.Preferred)
         self.sidebarLayout.addItem(spacer)
 
         # create the 'num arrows' input line and buttons
@@ -734,6 +757,59 @@ class MyApp(QWidget):
         form.addWidget(self.slider_aw)
         self.sidebarLayout.addLayout(form)
 
+        # add some spacing
+        self.sidebarLayout.addItem(spacer)
+
+        # create the 'Mouse line' checkbox
+        self.mouseLine = QCheckBox("Mouse line")
+        self.mouseLine.stateChanged.connect(self.checked_mouseLine)
+        self.mouseLine.setChecked(False)
+        self.mouseLine.setShortcut("Ctrl+M")
+        self.sidebarLayout.addWidget(self.mouseLine)
+
+        # create the 'Mouse line width' slider
+        self.slider_mw = QSlider(Qt.Horizontal)
+        self.slider_mw.setMinimum(1)
+        self.slider_mw.setMaximum(10)
+        self.slider_mw.setValue(DEFAULT_MOUSE_LINE_WIDTH)
+        self.slider_mw.setMinimumWidth(150)
+        self.slider_mw.setTickInterval(1)
+        self.slider_mw.setSingleStep(1)
+        self.slider_mw.setTickPosition(QSlider.TicksBelow)
+        self.slider_mw.valueChanged.connect(self.changed_mouse_line_width)
+        self.label_mw = QLabel()
+        self.label_mw.setText(f"  &Mouse line width: {DEFAULT_MOUSE_LINE_WIDTH}   ")
+        self.label_mw.setBuddy(
+            self.slider_mw
+        )  # changes focus to the slider if 'Alt+m' is pressed
+        form = QVBoxLayout()
+        form.addWidget(self.label_mw)
+        form.addWidget(self.slider_mw)
+        self.sidebarLayout.addLayout(form)
+
+        # create the 'Mouse line length' slider
+        self.slider_ml = QSlider(Qt.Horizontal)
+        self.slider_ml.setMinimum(1)
+        self.slider_ml.setMaximum(10)
+        self.slider_ml.setValue(DEFAULT_MOUSE_LINE_LENGTH)
+        self.slider_ml.setMinimumWidth(150)
+        self.slider_ml.setTickInterval(1)
+        self.slider_ml.setSingleStep(1)
+        self.slider_ml.setTickPosition(QSlider.TicksBelow)
+        self.slider_ml.valueChanged.connect(self.changed_mouse_line_length)
+        self.label_ml = QLabel()
+        self.label_ml.setText(f"  &Mouse line length: {DEFAULT_MOUSE_LINE_LENGTH}   ")
+        self.label_ml.setBuddy(
+            self.slider_ml
+        )  # changes focus to the slider if 'Alt+m' is pressed
+        form = QVBoxLayout()
+        form.addWidget(self.label_ml)
+        form.addWidget(self.slider_ml)
+        self.sidebarLayout.addLayout(form)
+
+        # add some spacing
+        self.sidebarLayout.addItem(spacer)
+
         # create the 'trace line width' slider
         self.slider_w = QSlider(Qt.Horizontal)
         self.slider_w.setMinimum(1)
@@ -754,32 +830,22 @@ class MyApp(QWidget):
         form.addWidget(self.slider_w)
         self.sidebarLayout.addLayout(form)
 
-        # create the 'trace line width' slider
-        self.slider_mw = QSlider(Qt.Horizontal)
-        self.slider_mw.setMinimum(1)
-        self.slider_mw.setMaximum(10)
-        self.slider_mw.setValue(DEFAULT_MOUSE_LINE_WIDTH)
-        self.slider_mw.setMinimumWidth(150)
-        self.slider_mw.setTickInterval(1)
-        self.slider_mw.setSingleStep(1)
-        self.slider_mw.setTickPosition(QSlider.TicksBelow)
-        self.slider_mw.valueChanged.connect(self.changed_mouse_line_width)
-        self.label_mw = QLabel()
-        self.label_mw.setText(f"  &Mouse line width: {DEFAULT_MOUSE_LINE_WIDTH}   ")
-        self.label_mw.setBuddy(
-            self.slider_mw
-        )  # changes focus to the slider if 'Alt+m' is pressed
-        form = QVBoxLayout()
-        form.addWidget(self.label_mw)
-        form.addWidget(self.slider_mw)
-        self.sidebarLayout.addLayout(form)
+        # create the 'Auto trace dx' checkbox
+        self.autoTrace = QCheckBox("Auto trace dx")
+        self.autoTrace.setChecked(True)
+        self.autoTrace.stateChanged.connect(self.checked_autoTrace)
+        self.sidebarLayout.addWidget(self.autoTrace)
 
-        # create the 'Mouse line' checkbox
-        self.mouseLine = QCheckBox("Mouse line")
-        self.mouseLine.stateChanged.connect(self.checked_mouseLine)
-        self.mouseLine.setChecked(False)
-        self.mouseLine.setShortcut("Ctrl+M")
-        self.sidebarLayout.addWidget(self.mouseLine)
+        # create the 'trace dx' input line
+        self.trace_dx_input = QLineEdit()
+        self.trace_dx_input.setEnabled(False)
+        self.trace_dx_input.setText(str(self.canvas.dfb.get_auto_dx()))
+        self.trace_dx_input.textChanged.connect(self.update_trace_dx)
+        form = QFormLayout()
+        form.addRow(
+            "  dx:", self.trace_dx_input
+        )  # spaces at the beginning are for additional padding
+        self.sidebarLayout.addLayout(form)
 
         # add space
         self.sidebarLayout.addItem(spacer)
@@ -887,6 +953,32 @@ class MyApp(QWidget):
             self.update_ymax()
         self.canvas.redraw()
 
+    def enable_input_lines(self, enabled):
+        self.xmin_input.setEnabled(enabled)
+        self.xmax_input.setEnabled(enabled)
+        self.ymin_input.setEnabled(enabled)
+        self.ymax_input.setEnabled(enabled)
+
+    def checked_autoTrace(self, checked):
+        """Turns automatic trace dx on and off"""
+        self.canvas.dfb.auto_trace_dx = not self.canvas.dfb.auto_trace_dx
+        self.trace_dx_input.setEnabled(not checked)
+        self.update_displayed_trace_dx()
+
+    def update_trace_dx(self):
+        """Updates trace dx according to the dx input line"""
+        dx = self.trace_dx_input.text()
+        try:
+            dx = float(dx)
+        except ValueError:  # don't change anything if the input is not valid
+            return
+        self.canvas.set_trace_lines_dx(dx)
+
+    def update_displayed_trace_dx(self):
+        """Sets trace dx to the one given"""
+        dx = self.canvas.dfb.get_auto_dx()
+        self.trace_dx_input.setText(f"{dx:.10f}")
+
     def update_xmin(self):
         """Updates xmin according to the xmin input line."""
         xmin = self.xmin_input.text()
@@ -989,6 +1081,13 @@ class MyApp(QWidget):
         self.canvas.set_mouse_line_width(width)
         self.canvas.dfb.draw_mouse_line()
 
+    def changed_mouse_line_length(self):
+        """Updates the mouse line length according to the slider."""
+        length = self.slider_ml.value()
+        self.label_ml.setText(f"  &Mouse line length: {length}")
+        self.canvas.set_mouse_line_length(length)
+        self.canvas.dfb.draw_mouse_line()
+
     def checked_mouseLine(self):
         """Turns the mouse line on and off."""
         self.canvas.dfb.drawing_mouse_line = not self.canvas.dfb.drawing_mouse_line
@@ -996,12 +1095,6 @@ class MyApp(QWidget):
             self.canvas.dfb.draw_mouse_line()
         else:
             self.canvas.dfb.remove_mouse_line_from_plot()
-
-    def enable_input_lines(self, enabled):
-        self.xmin_input.setEnabled(enabled)
-        self.xmax_input.setEnabled(enabled)
-        self.ymin_input.setEnabled(enabled)
-        self.ymax_input.setEnabled(enabled)
 
 
 def main():
