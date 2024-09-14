@@ -58,6 +58,8 @@ class DirectionFieldBuilder:
         self.plot = plot
         self.app = app  # the MyApp object SCB is embedded in
 
+        self.show_grid = False
+        self.show_axes = True
         self.indicate_colors = True
         self.color_intensity = DEFAULT_COLOR_INTENSITY
         self.color_map_name = DEFAULT_COLOR_MAP
@@ -348,9 +350,13 @@ class DirectionFieldBuilder:
         self.plot.axes.set_xlim(xlim)
         self.plot.axes.set_ylim(ylim)
 
+        if self.show_grid:
+            self.plot.axes.grid(True)
+
         # draw the axes
-        self.plot.axes.axvline(0, color="b", linewidth=1.5)
-        self.plot.axes.axhline(0, color="b", linewidth=1.5)
+        if self.show_axes:
+            self.plot.axes.axvline(0, color="b", linewidth=1.5)
+            self.plot.axes.axhline(0, color="b", linewidth=1.5)
 
         if self.drawing_mouse_line:
             self.draw_mouse_line()

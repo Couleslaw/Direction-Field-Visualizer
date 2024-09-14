@@ -64,6 +64,14 @@ class Canvas(FigureCanvas):
         self.dfb.color_map_name = color_map
         self.redraw()
 
+    def set_grid_enabled(self, enabled):
+        self.dfb.show_grid = enabled
+        self.redraw()
+
+    def set_axes_enabled(self, enabled):
+        self.dfb.show_axes = enabled
+        self.redraw()
+
     def set_trace_lines_width(self, trace_lines_width):
         self.dfb.trace_lines_width = trace_lines_width
 

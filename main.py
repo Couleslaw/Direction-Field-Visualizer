@@ -34,7 +34,7 @@ class MyApp(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setMinimumSize(880, 550)
+        self.setMinimumSize(900, 560)
         self.setWindowTitle("Direction Field Visualizer")
 
         self.layout = QHBoxLayout()
@@ -90,7 +90,7 @@ class MyApp(QWidget):
         self.sidebarLayout.addLayout(graphLayout)
 
         # add space
-        spacer = QSpacerItem(20, 70, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
+        spacer = QSpacerItem(0, 30, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
         self.sidebarLayout.addItem(spacer)
 
         # create the 'num arrows' input line and buttons
@@ -283,6 +283,20 @@ class MyApp(QWidget):
         )  # spaces at the beginning are for additional padding
         self.sidebarLayout.addLayout(form)
 
+        layout = QHBoxLayout()
+        # create the 'Grid' checkbox
+        self.gridCheckBox = QCheckBox("Grid")
+        self.gridCheckBox.setChecked(False)
+        self.gridCheckBox.stateChanged.connect(self.checked_grid)
+        layout.addWidget(self.gridCheckBox)
+
+        # create the 'Axes' checkbox
+        self.axesCheckBox = QCheckBox("Axes")
+        self.axesCheckBox.setChecked(True)
+        self.axesCheckBox.stateChanged.connect(self.checked_axes)
+        layout.addWidget(self.axesCheckBox)
+        self.sidebarLayout.addLayout(layout)
+
         # create the 'Equal axes' checkbox
         self.equalAxes = QCheckBox("Equal axes")
         self.equalAxes.stateChanged.connect(self.checked_equalAxes)
@@ -404,6 +418,12 @@ class MyApp(QWidget):
         self.canvas.dfb.auto_trace_dx = not self.canvas.dfb.auto_trace_dx
         self.trace_dx_input.setEnabled(not checked)
         self.update_displayed_trace_dx()
+
+    def checked_grid(self, checked):
+        self.canvas.set_grid_enabled(checked)
+
+    def checked_axes(self, checked):
+        self.canvas.set_axes_enabled(checked)
 
     def update_trace_dx(self):
         """Updates trace dx according to the dx input line"""
@@ -541,7 +561,6 @@ class MyApp(QWidget):
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Direction Field Visualizer")
-    # app.setStyle("Fusion")
     myApp = MyApp()
     main_win = QMainWindow()
     main_win.setCentralWidget(myApp)
