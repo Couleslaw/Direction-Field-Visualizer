@@ -249,9 +249,16 @@ class DirectionFieldBuilder:
                     return 0
 
     def get_colors(self, curvatures, ignore):
+        """
+        Returns colors for the arrows based on the curvature of the function at the arrow's center.
+        ignore says if the arrow is out of the screen
+        """
+
         def norm(x):
-            # remove most extreme value
+            """normalizes x to values between 0 and 1 while ignoring values off screen and the most extreme value"""
             on_screen = x[np.logical_not(ignore)]
+            # if there is only one max value, which is more than twice as big as the second max value
+            # it is quite likely that this is a fluke caused by division by zero --> ignore it
             max_val = max(on_screen)
             multiple_max = np.sum(on_screen == max_val) > 1
             smaller = [val for val in on_screen if val < max_val]
@@ -262,6 +269,8 @@ class DirectionFieldBuilder:
 
             return Normalize()(x)
 
+        # since exponents are exponential, we can not simply linear map the COLOR_INTENSITY to EXPONENT
+        # use an exponential function to map the values
         base = 1.4
         a = (MAX_COLOR_EXP - MIN_COLOR_EXP) / (
             base**MAX_COLOR_INTENSITY - base**MIN_COLOR_INTENSITY

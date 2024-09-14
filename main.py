@@ -1,5 +1,6 @@
 import sys
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
@@ -37,20 +38,19 @@ class MyApp(QWidget):
 
         self.layout = QHBoxLayout()
         self.setLayout(self.layout)
-        self.layout.setSpacing(0)
 
         mainLayout = QVBoxLayout()
-        mainLayout.setSpacing(0)
 
         # create the matplotlib graph
         self.canvas = Canvas(self)
+        self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         mainLayout.addWidget(self.canvas)
 
         # create the top bar layout
         topbar = QWidget()
-        self.top_barLayout = QHBoxLayout()
-        topbar.setLayout(self.top_barLayout)
-        topbar.setMaximumHeight(70)
+        self.bot_barLayout = QHBoxLayout()
+        topbar.setLayout(self.bot_barLayout)
+        # topbar.setMaximumHeight(170)
         mainLayout.addWidget(topbar)
 
         self.layout.addLayout(mainLayout)
@@ -285,7 +285,7 @@ class MyApp(QWidget):
         # create the 'Equal axes' checkbox
         self.equalAxes = QCheckBox("Equal axes")
         self.equalAxes.stateChanged.connect(self.checked_equalAxes)
-        self.top_barLayout.addWidget(self.equalAxes)
+        self.bot_barLayout.addWidget(self.equalAxes)
 
         # create the 'x min' input line
         self.xmin_input = QLineEdit()
@@ -295,7 +295,7 @@ class MyApp(QWidget):
         form.addRow(
             "  x min:", self.xmin_input
         )  # spaces at the beginning are for additional padding
-        self.top_barLayout.addLayout(form)
+        self.bot_barLayout.addLayout(form)
 
         # create the 'x max' input line
         self.xmax_input = QLineEdit()
@@ -305,7 +305,7 @@ class MyApp(QWidget):
         form.addRow(
             "  x max:", self.xmax_input
         )  # spaces at the beginning are for additional padding
-        self.top_barLayout.addLayout(form)
+        self.bot_barLayout.addLayout(form)
 
         # create the 'y min' input line
         self.ymin_input = QLineEdit()
@@ -315,7 +315,7 @@ class MyApp(QWidget):
         form.addRow(
             "  y min:", self.ymin_input
         )  # spaces at the beginning are for additional padding
-        self.top_barLayout.addLayout(form)
+        self.bot_barLayout.addLayout(form)
 
         # create the 'y max' input line
         self.ymax_input = QLineEdit()
@@ -325,7 +325,7 @@ class MyApp(QWidget):
         form.addRow(
             "  y max:", self.ymax_input
         )  # spaces at the beginning are for additional padding
-        self.top_barLayout.addLayout(form)
+        self.bot_barLayout.addLayout(form)
 
         self.equalAxes.setChecked(MyApp.equal_axes)
 
@@ -540,8 +540,30 @@ class MyApp(QWidget):
 
 
 def main():
-    app = QApplication([])
+    app = QApplication(sys.argv + ["-platform", "windows:darkmode=1"])
     app.setStyle("Fusion")
+    dark_palette = QPalette()
+
+    dark_palette.setColor(QPalette.Window, QColor(53, 53, 53))
+    dark_palette.setColor(QPalette.WindowText, Qt.white)
+    dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
+    dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+    dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
+    dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+    dark_palette.setColor(QPalette.Text, Qt.white)
+    dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
+    dark_palette.setColor(QPalette.ButtonText, Qt.white)
+    dark_palette.setColor(QPalette.BrightText, Qt.red)
+    dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
+    dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+    dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+
+    app.setPalette(dark_palette)
+
+    app.setStyleSheet(
+        "QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }"
+    )
+
     myApp = MyApp()
     myApp.show()
 
