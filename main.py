@@ -430,6 +430,11 @@ class MyApp(QWidget):
         dx = self.trace_dx_input.text()
         try:
             dx = float(dx)
+            if dx <= 0:
+                return
+            if dx < MIN_TRACE_DX:
+                dx = MIN_TRACE_DX
+                self.trace_dx_input.setText(str(dx))
         except ValueError:  # don't change anything if the input is not valid
             return
         dx = max(dx, MIN_TRACE_DX)
@@ -448,7 +453,7 @@ class MyApp(QWidget):
         except ValueError:  # don't change anything if the input is not valid
             return
         xlim = self.canvas.get_xlim()
-        if xmin == round(xlim[0], ROUND_INPUT_LINES):
+        if xmin == round(xlim[0], ROUND_INPUT_LINES) or xmin >= xlim[1]:
             return
         self.canvas.set_xlim((xmin, xlim[1]))
 
@@ -460,7 +465,7 @@ class MyApp(QWidget):
         except ValueError:  # don't change anything if the input is not valid
             return
         xlim = self.canvas.get_xlim()
-        if xmax == round(xlim[1], ROUND_INPUT_LINES):
+        if xmax == round(xlim[1], ROUND_INPUT_LINES) or xmax <= xlim[0]:
             return
         self.canvas.set_xlim((xlim[0], xmax))
 
@@ -472,7 +477,7 @@ class MyApp(QWidget):
         except ValueError:  # don't change anything if the input is not valid
             return
         ylim = self.canvas.get_ylim()
-        if ymin == round(ylim[0], ROUND_INPUT_LINES):
+        if ymin == round(ylim[0], ROUND_INPUT_LINES) or ymin >= ylim[1]:
             return
         self.canvas.set_ylim((ymin, ylim[1]))
 
@@ -484,7 +489,7 @@ class MyApp(QWidget):
         except ValueError:  # don't change anything if the input is not valid
             return
         ylim = self.canvas.get_ylim()
-        if ymax == round(ylim[1], ROUND_INPUT_LINES):
+        if ymax == round(ylim[1], ROUND_INPUT_LINES) or ymax <= ylim[0]:
             return
         self.canvas.set_ylim((ylim[0], ymax))
 
@@ -505,6 +510,9 @@ class MyApp(QWidget):
             return
         if num_arrows > MAX_NUM_ARROWS:
             num_arrows = MAX_NUM_ARROWS
+            self.num_arrows_input.setText(str(num_arrows))
+        if num_arrows < 1:
+            num_arrows = 1
             self.num_arrows_input.setText(str(num_arrows))
         self.canvas.set_num_arrows(num_arrows)
         self.canvas.redraw()

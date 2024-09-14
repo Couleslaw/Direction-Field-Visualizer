@@ -1,7 +1,6 @@
-import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
-from PyQt5.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QMessageBox
 from matplotlib import cm
 import numpy as np
 
@@ -262,14 +261,20 @@ class DirectionFieldBuilder:
             # if there is only one max value, which is more than twice as big as the second max value
             # it is quite likely that this is a fluke caused by division by zero --> ignore it
             max_val = max(on_screen)
-            multiple_max = np.sum(on_screen == max_val) > 1
-            smaller = [val for val in on_screen if val < max_val]
-            second_max_val = max(smaller) if smaller else max_val
-            if not multiple_max and max_val > 2 * second_max_val:
-                max_val = second_max_val
-            x[np.where(x > max_val)] = max_val
+            second_max = -np.inf
+            num_max = 0
+            for val in on_screen:
+                if val == max_val:
+                    num_max += 1
+                elif val > second_max:
+                    second_max = val
+            if second_max == -np.inf:
+                second_max = max_val
 
-            return Normalize()(x)
+            if num_max == 1 and max_val > 2 * second_max:
+                max_val = second_max
+
+            return Normalize(clip=True, vmin=0, vmax=max_val)(x)
 
         # since exponents are exponential, we can not simply linear map the COLOR_INTENSITY to EXPONENT
         # use an exponential function to map the values
@@ -556,9 +561,9 @@ class DirectionFieldBuilder:
         right_line = trace(trace_forward=True)
         left_line = trace(trace_forward=False)
 
-        lc = LineCollection(
-            [left_line, right_line], color="r", linewidth=self.trace_lines_width
-        )
+        # mapping 1->1, 10->7
+        line_width = 1 + 6 * (self.trace_lines_width - 1) / 9
+        lc = LineCollection([left_line, right_line], color="r", linewidth=line_width)
         self.plot.axes.add_collection(lc)
         self.plot.figure.canvas.draw()
 
@@ -599,6 +604,10 @@ class DirectionFieldBuilder:
         x2 = x1 + line_info[2]
         y2 = y1 + line_info[3]
         self.last_mouse_line = self.plot.axes.plot(
-            [x1, x2], [y1, y2], color="r", linewidth=self.mouse_line_width
+            [x1, x2],
+            [y1, y2],
+            color="r",
+            linewidth=self.mouse_line_width,
+            solid_capstyle="round",
         )
         self.plot.figure.canvas.draw()
