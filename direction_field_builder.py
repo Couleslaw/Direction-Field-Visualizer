@@ -1,7 +1,9 @@
+import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
-import numpy as np
+from matplotlib.colors import Normalize
 from PyQt5.QtWidgets import QMessageBox
-
+from matplotlib import cm
+import numpy as np
 
 np.seterr(divide="raise", invalid="ignore")
 
@@ -36,11 +38,7 @@ ln = log
 abs = fabs
 sign = lambda x: int((x > 0)) - int((x < 0))
 
-ZOOM = 2
-MAX_ZOOM = 1e-3
 
-TRACE_AUTO_DX_GRANULARITY = 10000
-TRACE_NUM_SEGMENTS_IN_DIAGONAL = 1000
 from default_constants import *
 
 
@@ -59,6 +57,10 @@ class DirectionFieldBuilder:
         self.mouse_pos = None
         self.plot = plot
         self.app = app  # the MyApp object SCB is embedded in
+
+        self.indicate_colors = True
+        self.color_intensity = DEFAULT_COLOR_INTENSITY
+        self.color_map_name = DEFAULT_COLOR_MAP
 
         self.num_arrows = DEFAULT_NUM_ARROWS
         self.arrow_length = DEFAULT_ARROW_LENGTH
@@ -213,6 +215,60 @@ class DirectionFieldBuilder:
             self.arrows_cache[(x, y)] = res
         return res
 
+    def curvature(self, x, y):
+        """
+        Returns the curvature of the function at the point (x, y)
+        """
+
+        dx = min(1e-6, self.get_auto_dx())
+        if fabs(x - int(x)) < dx:
+            x = int(x)
+        if fabs(y - int(y)) < dx:
+            y = int(y)
+
+        def get_curvature(x, y):
+            dy = self.function(x, y)
+            d2y = (self.function(x + dx, y + dx * dy) - self.function(x - dx, y - dx * dy)) / (
+                2 * dx
+            )
+            return d2y / (1 + dy**2) ** 1.5
+
+        xlim = self.plot.axes.get_xlim()
+        ylim = self.plot.axes.get_ylim()
+        fix_dx = max(0.001, (xlim[1] - xlim[0]) / 1000)
+        fix_dy = max(0.001, (ylim[1] - ylim[0]) / 1000)
+        try:
+            return get_curvature(x, y)
+        except:
+            try:
+                return get_curvature(x, y + fix_dy)
+            except:
+                try:
+                    return get_curvature(x + fix_dx, y)
+                except:
+                    return 0
+
+    def get_colors(self, curvatures, ignore):
+        def norm(x):
+            # remove most extreme value
+            on_screen = x[np.logical_not(ignore)]
+            max_val = max(on_screen)
+            multiple_max = np.sum(on_screen == max_val) > 1
+            second_max_val = max([val for val in on_screen if val != max_val])
+            if not multiple_max and max_val > 2 * second_max_val:
+                max_val = second_max_val
+            x[np.where(x > max_val)] = max_val
+
+            return Normalize()(x)
+
+        base = 1.4
+        a = (MAX_COLOR_EXP - MIN_COLOR_EXP) / (
+            base**MAX_COLOR_INTENSITY - base**MIN_COLOR_INTENSITY
+        )
+        b = MIN_COLOR_EXP - a * base**MIN_COLOR_INTENSITY
+        exponent = a * base**self.color_intensity + b
+        return cm.get_cmap(self.color_map_name)(norm(np.abs(curvatures)) ** exponent)
+
     def draw_field(self, just_entered_new_function=False, keep_cache=False):
         """Draws the direction field."""
         if not keep_cache:
@@ -224,29 +280,32 @@ class DirectionFieldBuilder:
         diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
         vector_len = diagonal / 200 * self.arrow_length
 
-        xstep = (xlim[1] - xlim[0]) / self.num_arrows
-        ystep = (ylim[1] - ylim[0]) / self.num_arrows
-
-        xmargin = (self.num_arrows // 5) * xstep + (
-            xstep / 2 if self.num_arrows % 2 == 0 else 0
-        )
-        ymargin = (self.num_arrows // 5) * ystep + (
-            ystep / 2 if self.num_arrows % 2 == 0 else 0
-        )
+        step = (xlim[1] - xlim[0]) / self.num_arrows
+        margin = (self.num_arrows // 6) * step + (step / 2 if self.num_arrows % 2 == 0 else 0)
 
         f = lambda n, s: s * (n // s)
-        xs = np.arange(f(xlim[0], xstep) - xmargin, xlim[1] + xstep + xmargin, xstep)
-        ys = np.arange(f(ylim[0], ystep) - ymargin, ylim[1] + ystep + ymargin, ystep)
-
+        xs = np.arange(f(xlim[0], step) - margin, xlim[1] + step + margin, step)
+        ys = np.arange(f(ylim[0], step) - margin, ylim[1] + step + margin, step)
         # try to get the arrows
         try:
-            arrows = np.array(
-                [
-                    line
-                    for line in [self.get_arrow(x, y, vector_len) for x in xs for y in ys]
-                    if line is not None
-                ]
-            ).T
+            arrows = []
+            curvatures = []
+            ignore = []
+            for x in xs:
+                for y in ys:
+                    arrow = self.get_arrow(x, y, vector_len)
+                    if arrow is not None:
+                        arrows.append(arrow)
+                        if self.indicate_colors:
+                            curvatures.append(self.curvature(x, y))
+                            if xlim[0] <= x <= xlim[1] and ylim[0] <= y <= ylim[1]:
+                                ignore.append(False)
+                            else:
+                                ignore.append(True)
+            arrows = np.array(arrows).T
+            if self.indicate_colors:
+                colors = self.get_colors(curvatures, ignore)
+
         # if there is an undefined function e.i. sinsin(x)
         except NameError as e:
             QMessageBox.critical(self.app, "Error", f"Unknown function: {e}")
@@ -271,6 +330,8 @@ class DirectionFieldBuilder:
                 scale_units="xy",
                 scale=1,
                 width=arrow_width,
+                color=colors if self.indicate_colors else "black",
+                cmap="hsv",
             )
 
         # set old lims
@@ -345,7 +406,7 @@ class DirectionFieldBuilder:
                 try:
                     # get derivative at (x,y)
                     slope = self.function(x, y)
-                    if slope > 1e10:  # if its insanely high --> go to infinity
+                    if slope > 1e6:  # if its insanely high --> go to infinity
                         return INFINITE
                     # move in the direction of the derivative
                     nx, ny = x + singularity_dx, y + singularity_dx * slope
@@ -431,7 +492,7 @@ class DirectionFieldBuilder:
                     break
 
                 # if the slope is very high --> there might be a singularity
-                if fabs(der) > 100:
+                if fabs(der) > 70:
                     result = handle_singularity(center[0], center[1])
 
                     if result == UNKNOWN or result == STOP:

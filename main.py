@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QSizePolicy,
     QFileDialog,
     QCheckBox,
+    QComboBox,
 )
 
 from canvas import Canvas
@@ -31,22 +32,35 @@ class MyApp(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setMinimumSize(1600, 1000)
+        self.setMinimumSize(1400, 900)
         self.setWindowTitle("Direction Field Visualizer")
 
         self.layout = QHBoxLayout()
         self.setLayout(self.layout)
+        self.layout.setSpacing(0)
+
+        mainLayout = QVBoxLayout()
+        mainLayout.setSpacing(0)
 
         # create the matplotlib graph
         self.canvas = Canvas(self)
-        self.layout.addWidget(self.canvas)
+        mainLayout.addWidget(self.canvas)
+
+        # create the top bar layout
+        topbar = QWidget()
+        self.top_barLayout = QHBoxLayout()
+        topbar.setLayout(self.top_barLayout)
+        topbar.setMaximumHeight(70)
+        mainLayout.addWidget(topbar)
+
+        self.layout.addLayout(mainLayout)
 
         # store all side-bar widgets here
         sidebar = QWidget()
         self.sidebarLayout = QVBoxLayout()
         self.sidebarLayout.setAlignment(Qt.AlignTop)
         sidebar.setLayout(self.sidebarLayout)
-        sidebar.setMaximumWidth(400)
+        sidebar.setMaximumWidth(300)
         self.layout.addWidget(sidebar)
 
         self.initUI()
@@ -124,7 +138,7 @@ class MyApp(QWidget):
         # create the 'arrow width' slider
         self.slider_aw = QSlider(Qt.Horizontal)
         self.slider_aw.setMinimum(1)
-        self.slider_aw.setMaximum(10)
+        self.slider_aw.setMaximum(15)
         self.slider_aw.setValue(DEFAULT_ARROW_WIDTH)
         self.slider_aw.setMinimumWidth(150)
         self.slider_aw.setTickInterval(1)
@@ -194,6 +208,43 @@ class MyApp(QWidget):
         # add some spacing
         self.sidebarLayout.addItem(spacer)
 
+        # create the 'Indicate curvature with color' checkbox
+        self.colors = QCheckBox("Curvature color")
+        self.colors.setChecked(True)
+        self.colors.stateChanged.connect(self.checked_color)
+        self.sidebarLayout.addWidget(self.colors)
+
+        # create the 'color intensity' slider
+        self.slider_c = QSlider(Qt.Horizontal)
+        self.slider_c.setMinimum(MIN_COLOR_INTENSITY)
+        self.slider_c.setMaximum(MAX_COLOR_INTENSITY)
+        self.slider_c.setValue(DEFAULT_COLOR_INTENSITY)
+        self.slider_c.setMinimumWidth(150)
+        self.slider_c.setTickInterval(1)
+        self.slider_c.setSingleStep(1)
+        self.slider_c.setTickPosition(QSlider.TicksBelow)
+        self.slider_c.valueChanged.connect(self.changed_color_intensity)
+        self.label_c = QLabel()
+        self.label_c.setText(f"  &Color contrast: {DEFAULT_COLOR_INTENSITY}   ")
+        self.label_c.setBuddy(
+            self.slider_c
+        )  # changes focus to the slider if 'Alt+c' is pressed
+        form = QVBoxLayout()
+        form.addWidget(self.label_c)
+        form.addWidget(self.slider_c)
+        self.sidebarLayout.addLayout(form)
+
+        # create color map dropdown list
+        self.color_map = QComboBox()
+        for color_map in AVAILABLE_COLOR_MAPS:
+            self.color_map.addItem(color_map)
+        self.color_map.setCurrentText(DEFAULT_COLOR_MAP)
+        self.color_map.currentTextChanged.connect(self.canvas.set_color_map)
+        self.sidebarLayout.addWidget(self.color_map)
+
+        # add some spacing
+        self.sidebarLayout.addItem(spacer)
+
         # create the 'trace line width' slider
         self.slider_w = QSlider(Qt.Horizontal)
         self.slider_w.setMinimum(1)
@@ -231,8 +282,10 @@ class MyApp(QWidget):
         )  # spaces at the beginning are for additional padding
         self.sidebarLayout.addLayout(form)
 
-        # add space
-        self.sidebarLayout.addItem(spacer)
+        # create the 'Equal axes' checkbox
+        self.equalAxes = QCheckBox("Equal axes")
+        self.equalAxes.stateChanged.connect(self.checked_equalAxes)
+        self.top_barLayout.addWidget(self.equalAxes)
 
         # create the 'x min' input line
         self.xmin_input = QLineEdit()
@@ -242,7 +295,7 @@ class MyApp(QWidget):
         form.addRow(
             "  x min:", self.xmin_input
         )  # spaces at the beginning are for additional padding
-        self.sidebarLayout.addLayout(form)
+        self.top_barLayout.addLayout(form)
 
         # create the 'x max' input line
         self.xmax_input = QLineEdit()
@@ -252,7 +305,7 @@ class MyApp(QWidget):
         form.addRow(
             "  x max:", self.xmax_input
         )  # spaces at the beginning are for additional padding
-        self.sidebarLayout.addLayout(form)
+        self.top_barLayout.addLayout(form)
 
         # create the 'y min' input line
         self.ymin_input = QLineEdit()
@@ -262,7 +315,7 @@ class MyApp(QWidget):
         form.addRow(
             "  y min:", self.ymin_input
         )  # spaces at the beginning are for additional padding
-        self.sidebarLayout.addLayout(form)
+        self.top_barLayout.addLayout(form)
 
         # create the 'y max' input line
         self.ymax_input = QLineEdit()
@@ -272,15 +325,9 @@ class MyApp(QWidget):
         form.addRow(
             "  y max:", self.ymax_input
         )  # spaces at the beginning are for additional padding
-        self.sidebarLayout.addLayout(form)
+        self.top_barLayout.addLayout(form)
 
-        self.enable_input_lines(not MyApp.equal_axes)
-
-        # create the 'Equal axes' checkbox
-        self.equalAxes = QCheckBox("Equal axes")
-        self.equalAxes.stateChanged.connect(self.checked_equalAxes)
         self.equalAxes.setChecked(MyApp.equal_axes)
-        self.sidebarLayout.addWidget(self.equalAxes)
 
     def show_save_file_dialog(self):
         """Opens a dialog to save the current figure as a png or svg file."""
@@ -342,6 +389,16 @@ class MyApp(QWidget):
         self.xmax_input.setEnabled(enabled)
         self.ymin_input.setEnabled(enabled)
         self.ymax_input.setEnabled(enabled)
+
+    def checked_color(self, checked):
+        """Turns color on and off."""
+        self.canvas.set_is_colored(checked)
+
+    def changed_color_intensity(self):
+        """Updates the color intensity according to the slider."""
+        color_intensity = self.slider_c.value()
+        self.label_c.setText(f"  &Color contrast: {color_intensity}")
+        self.canvas.set_color_intensity(color_intensity)
 
     def checked_autoTrace(self, checked):
         """Turns automatic trace dx on and off"""
@@ -483,7 +540,8 @@ class MyApp(QWidget):
 
 
 def main():
-    app = QApplication(sys.argv)
+    app = QApplication([])
+    app.setStyle("Fusion")
     myApp = MyApp()
     myApp.show()
 

@@ -52,6 +52,18 @@ class Canvas(FigureCanvas):
         self.dfb.arrow_width = arrow_width
         self.redraw()
 
+    def set_color_intensity(self, color_intensity):
+        self.dfb.color_intensity = color_intensity
+        self.redraw()
+
+    def set_is_colored(self, is_colored):
+        self.dfb.indicate_colors = is_colored
+        self.redraw()
+
+    def set_color_map(self, color_map):
+        self.dfb.color_map_name = color_map
+        self.redraw()
+
     def set_trace_lines_width(self, trace_lines_width):
         self.dfb.trace_lines_width = trace_lines_width
 
