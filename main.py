@@ -1,8 +1,9 @@
 import sys
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPalette, QColor
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import (
     QApplication,
+    QMainWindow,
     QWidget,
     QLabel,
     QPushButton,
@@ -33,7 +34,7 @@ class MyApp(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setMinimumSize(1400, 900)
+        self.setMinimumSize(880, 550)
         self.setWindowTitle("Direction Field Visualizer")
 
         self.layout = QHBoxLayout()
@@ -43,7 +44,7 @@ class MyApp(QWidget):
 
         # create the matplotlib graph
         self.canvas = Canvas(self)
-        self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         mainLayout.addWidget(self.canvas)
 
         # create the top bar layout
@@ -58,9 +59,9 @@ class MyApp(QWidget):
         # store all side-bar widgets here
         sidebar = QWidget()
         self.sidebarLayout = QVBoxLayout()
-        self.sidebarLayout.setAlignment(Qt.AlignTop)
+        self.sidebarLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
         sidebar.setLayout(self.sidebarLayout)
-        sidebar.setMaximumWidth(300)
+        sidebar.setMaximumWidth(200)
         self.layout.addWidget(sidebar)
 
         self.initUI()
@@ -89,7 +90,7 @@ class MyApp(QWidget):
         self.sidebarLayout.addLayout(graphLayout)
 
         # add space
-        spacer = QSpacerItem(20, 70, QSizePolicy.Minimum, QSizePolicy.Preferred)
+        spacer = QSpacerItem(20, 70, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
         self.sidebarLayout.addItem(spacer)
 
         # create the 'num arrows' input line and buttons
@@ -116,14 +117,14 @@ class MyApp(QWidget):
         self.sidebarLayout.addLayout(arrowLayout)
 
         # create the 'arrow length' slider
-        self.slider_a = QSlider(Qt.Horizontal)
+        self.slider_a = QSlider(Qt.Orientation.Horizontal)
         self.slider_a.setMinimum(1)
         self.slider_a.setMaximum(15)
         self.slider_a.setValue(DEFAULT_ARROW_LENGTH)
         self.slider_a.setMinimumWidth(150)
         self.slider_a.setTickInterval(1)
         self.slider_a.setSingleStep(1)
-        self.slider_a.setTickPosition(QSlider.TicksBelow)
+        self.slider_a.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_a.valueChanged.connect(self.changed_arrow_length)
         self.label_a = QLabel()
         self.label_a.setText(f"  &Arrow length: {DEFAULT_ARROW_LENGTH}   ")
@@ -136,14 +137,14 @@ class MyApp(QWidget):
         self.sidebarLayout.addLayout(form)
 
         # create the 'arrow width' slider
-        self.slider_aw = QSlider(Qt.Horizontal)
+        self.slider_aw = QSlider(Qt.Orientation.Horizontal)
         self.slider_aw.setMinimum(1)
         self.slider_aw.setMaximum(15)
         self.slider_aw.setValue(DEFAULT_ARROW_WIDTH)
         self.slider_aw.setMinimumWidth(150)
         self.slider_aw.setTickInterval(1)
         self.slider_aw.setSingleStep(1)
-        self.slider_aw.setTickPosition(QSlider.TicksBelow)
+        self.slider_aw.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_aw.valueChanged.connect(self.changed_arrow_width)
         self.label_aw = QLabel()
         self.label_aw.setText(f"  &Arrow width: {DEFAULT_ARROW_WIDTH}   ")
@@ -166,14 +167,14 @@ class MyApp(QWidget):
         self.sidebarLayout.addWidget(self.mouseLine)
 
         # create the 'Mouse line width' slider
-        self.slider_mw = QSlider(Qt.Horizontal)
+        self.slider_mw = QSlider(Qt.Orientation.Horizontal)
         self.slider_mw.setMinimum(1)
         self.slider_mw.setMaximum(10)
         self.slider_mw.setValue(DEFAULT_MOUSE_LINE_WIDTH)
         self.slider_mw.setMinimumWidth(150)
         self.slider_mw.setTickInterval(1)
         self.slider_mw.setSingleStep(1)
-        self.slider_mw.setTickPosition(QSlider.TicksBelow)
+        self.slider_mw.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_mw.valueChanged.connect(self.changed_mouse_line_width)
         self.label_mw = QLabel()
         self.label_mw.setText(f"  &Mouse line width: {DEFAULT_MOUSE_LINE_WIDTH}   ")
@@ -186,14 +187,14 @@ class MyApp(QWidget):
         self.sidebarLayout.addLayout(form)
 
         # create the 'Mouse line length' slider
-        self.slider_ml = QSlider(Qt.Horizontal)
+        self.slider_ml = QSlider(Qt.Orientation.Horizontal)
         self.slider_ml.setMinimum(1)
         self.slider_ml.setMaximum(10)
         self.slider_ml.setValue(DEFAULT_MOUSE_LINE_LENGTH)
         self.slider_ml.setMinimumWidth(150)
         self.slider_ml.setTickInterval(1)
         self.slider_ml.setSingleStep(1)
-        self.slider_ml.setTickPosition(QSlider.TicksBelow)
+        self.slider_ml.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_ml.valueChanged.connect(self.changed_mouse_line_length)
         self.label_ml = QLabel()
         self.label_ml.setText(f"  &Mouse line length: {DEFAULT_MOUSE_LINE_LENGTH}   ")
@@ -215,14 +216,14 @@ class MyApp(QWidget):
         self.sidebarLayout.addWidget(self.colors)
 
         # create the 'color intensity' slider
-        self.slider_c = QSlider(Qt.Horizontal)
+        self.slider_c = QSlider(Qt.Orientation.Horizontal)
         self.slider_c.setMinimum(MIN_COLOR_INTENSITY)
         self.slider_c.setMaximum(MAX_COLOR_INTENSITY)
         self.slider_c.setValue(DEFAULT_COLOR_INTENSITY)
         self.slider_c.setMinimumWidth(150)
         self.slider_c.setTickInterval(1)
         self.slider_c.setSingleStep(1)
-        self.slider_c.setTickPosition(QSlider.TicksBelow)
+        self.slider_c.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_c.valueChanged.connect(self.changed_color_intensity)
         self.label_c = QLabel()
         self.label_c.setText(f"  &Color contrast: {DEFAULT_COLOR_INTENSITY}   ")
@@ -246,14 +247,14 @@ class MyApp(QWidget):
         self.sidebarLayout.addItem(spacer)
 
         # create the 'trace line width' slider
-        self.slider_w = QSlider(Qt.Horizontal)
+        self.slider_w = QSlider(Qt.Orientation.Horizontal)
         self.slider_w.setMinimum(1)
         self.slider_w.setMaximum(10)
         self.slider_w.setValue(DEFAULT_TRACE_LINES_WIDTH)
         self.slider_w.setMinimumWidth(150)
         self.slider_w.setTickInterval(1)
         self.slider_w.setSingleStep(1)
-        self.slider_w.setTickPosition(QSlider.TicksBelow)
+        self.slider_w.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_w.valueChanged.connect(self.changed_trace_lines_width)
         self.label_w = QLabel()
         self.label_w.setText(f"  &Trace line width: {DEFAULT_TRACE_LINES_WIDTH}   ")
@@ -331,13 +332,11 @@ class MyApp(QWidget):
 
     def show_save_file_dialog(self):
         """Opens a dialog to save the current figure as a png or svg file."""
-        options = QFileDialog.Options()
         file_name, _ = QFileDialog.getSaveFileName(
             self,
             "Save File",
             "",
             "PNG (*.png);; svg (*.svg)",
-            options=options,
         )
         if file_name:
             self.canvas.figure.savefig(file_name, bbox_inches="tight")
@@ -540,35 +539,17 @@ class MyApp(QWidget):
 
 
 def main():
-    app = QApplication(sys.argv + ["-platform", "windows:darkmode=1"])
-    app.setStyle("Fusion")
-    dark_palette = QPalette()
-
-    dark_palette.setColor(QPalette.Window, QColor(53, 53, 53))
-    dark_palette.setColor(QPalette.WindowText, Qt.white)
-    dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
-    dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-    dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
-    dark_palette.setColor(QPalette.ToolTipText, Qt.white)
-    dark_palette.setColor(QPalette.Text, Qt.white)
-    dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
-    dark_palette.setColor(QPalette.ButtonText, Qt.white)
-    dark_palette.setColor(QPalette.BrightText, Qt.red)
-    dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
-    dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-    dark_palette.setColor(QPalette.HighlightedText, Qt.black)
-
-    app.setPalette(dark_palette)
-
-    app.setStyleSheet(
-        "QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }"
-    )
-
+    app = QApplication(sys.argv)
+    app.setApplicationName("Direction Field Visualizer")
+    # app.setStyle("Fusion")
     myApp = MyApp()
-    myApp.show()
+    main_win = QMainWindow()
+    main_win.setCentralWidget(myApp)
+    main_win.setWindowIcon(QIcon("images/icon.ico"))
+    main_win.show()
 
     try:
-        sys.exit(app.exec_())
+        sys.exit(app.exec())
     except SystemExit:
         print("Closing Window...")
 
