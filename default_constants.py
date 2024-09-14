@@ -30,7 +30,20 @@ MAX_COLOR_INTENSITY = 10
 MIN_COLOR_EXP = 0.1
 MAX_COLOR_EXP = 2.0
 DEFAULT_COLOR_MAP = "viridis"
-AVAILABLE_COLOR_MAPS = ["viridis", "plasma", "cividis", "turbo", "gnuplot", "brg"]
+AVAILABLE_COLOR_MAPS = [
+    "viridis",
+    "plasma",
+    "cividis",
+    "turbo",
+    "gnuplot",
+    "brg",
+    "gray",
+    "spring",
+    "cool",
+    "hot",
+    "rainbow",
+    "prism",
+]
 
 # zoom
 ZOOM = 2
