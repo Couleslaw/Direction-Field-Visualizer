@@ -254,7 +254,8 @@ class DirectionFieldBuilder:
             on_screen = x[np.logical_not(ignore)]
             max_val = max(on_screen)
             multiple_max = np.sum(on_screen == max_val) > 1
-            second_max_val = max([val for val in on_screen if val != max_val])
+            smaller = [val for val in on_screen if val < max_val]
+            second_max_val = max(smaller) if smaller else max_val
             if not multiple_max and max_val > 2 * second_max_val:
                 max_val = second_max_val
             x[np.where(x > max_val)] = max_val
