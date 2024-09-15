@@ -119,7 +119,7 @@ class MyApp(QWidget):
         # create the 'arrow length' slider
         self.slider_a = QSlider(Qt.Orientation.Horizontal)
         self.slider_a.setMinimum(1)
-        self.slider_a.setMaximum(15)
+        self.slider_a.setMaximum(20)
         self.slider_a.setValue(DEFAULT_ARROW_LENGTH)
         self.slider_a.setMinimumWidth(150)
         self.slider_a.setTickInterval(1)
@@ -139,7 +139,7 @@ class MyApp(QWidget):
         # create the 'arrow width' slider
         self.slider_aw = QSlider(Qt.Orientation.Horizontal)
         self.slider_aw.setMinimum(1)
-        self.slider_aw.setMaximum(15)
+        self.slider_aw.setMaximum(20)
         self.slider_aw.setValue(DEFAULT_ARROW_WIDTH)
         self.slider_aw.setMinimumWidth(150)
         self.slider_aw.setTickInterval(1)
@@ -166,26 +166,6 @@ class MyApp(QWidget):
         self.mouseLine.setShortcut("Ctrl+M")
         self.sidebarLayout.addWidget(self.mouseLine)
 
-        # create the 'Mouse line width' slider
-        self.slider_mw = QSlider(Qt.Orientation.Horizontal)
-        self.slider_mw.setMinimum(1)
-        self.slider_mw.setMaximum(10)
-        self.slider_mw.setValue(DEFAULT_MOUSE_LINE_WIDTH)
-        self.slider_mw.setMinimumWidth(150)
-        self.slider_mw.setTickInterval(1)
-        self.slider_mw.setSingleStep(1)
-        self.slider_mw.setTickPosition(QSlider.TickPosition.TicksBelow)
-        self.slider_mw.valueChanged.connect(self.changed_mouse_line_width)
-        self.label_mw = QLabel()
-        self.label_mw.setText(f"  &Mouse line width: {DEFAULT_MOUSE_LINE_WIDTH}   ")
-        self.label_mw.setBuddy(
-            self.slider_mw
-        )  # changes focus to the slider if 'Alt+m' is pressed
-        form = QVBoxLayout()
-        form.addWidget(self.label_mw)
-        form.addWidget(self.slider_mw)
-        self.sidebarLayout.addLayout(form)
-
         # create the 'Mouse line length' slider
         self.slider_ml = QSlider(Qt.Orientation.Horizontal)
         self.slider_ml.setMinimum(1)
@@ -206,11 +186,30 @@ class MyApp(QWidget):
         form.addWidget(self.slider_ml)
         self.sidebarLayout.addLayout(form)
 
+        # create the 'Mouse line width' slider
+        self.slider_mw = QSlider(Qt.Orientation.Horizontal)
+        self.slider_mw.setMinimum(1)
+        self.slider_mw.setMaximum(10)
+        self.slider_mw.setValue(DEFAULT_MOUSE_LINE_WIDTH)
+        self.slider_mw.setMinimumWidth(150)
+        self.slider_mw.setTickInterval(1)
+        self.slider_mw.setSingleStep(1)
+        self.slider_mw.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.slider_mw.valueChanged.connect(self.changed_mouse_line_width)
+        self.label_mw = QLabel()
+        self.label_mw.setText(f"  &Mouse line width: {DEFAULT_MOUSE_LINE_WIDTH}   ")
+        self.label_mw.setBuddy(
+            self.slider_mw
+        )  # changes focus to the slider if 'Alt+m' is pressed
+        form = QVBoxLayout()
+        form.addWidget(self.label_mw)
+        form.addWidget(self.slider_mw)
+        self.sidebarLayout.addLayout(form)
         # add some spacing
         self.sidebarLayout.addItem(spacer)
 
-        # create the 'Indicate curvature with color' checkbox
-        self.colors = QCheckBox("Curvature color")
+        # create the 'Color by curvature' checkbox
+        self.colors = QCheckBox("Color by curvature")
         self.colors.setChecked(True)
         self.colors.stateChanged.connect(self.checked_color)
         self.sidebarLayout.addWidget(self.colors)
@@ -218,7 +217,7 @@ class MyApp(QWidget):
         # create the 'color intensity' slider
         self.slider_c = QSlider(Qt.Orientation.Horizontal)
         self.slider_c.setMinimum(MIN_COLOR_INTENSITY)
-        self.slider_c.setMaximum(MAX_COLOR_INTENSITY)
+        self.slider_c.setMaximum(15)
         self.slider_c.setValue(DEFAULT_COLOR_INTENSITY)
         self.slider_c.setMinimumWidth(150)
         self.slider_c.setTickInterval(1)
@@ -349,8 +348,8 @@ class MyApp(QWidget):
         file_name, _ = QFileDialog.getSaveFileName(
             self,
             "Save File",
-            "",
-            "PNG (*.png);; svg (*.svg)",
+            f"",
+            "SVG (*.svg);; PNG (*.png);; PDF (*.pdf)",
         )
         if file_name:
             self.canvas.figure.savefig(file_name, bbox_inches="tight")
@@ -572,7 +571,7 @@ def main():
     myApp = MyApp()
     main_win = QMainWindow()
     main_win.setCentralWidget(myApp)
-    main_win.setWindowIcon(QIcon("images/icon.ico"))
+    main_win.setWindowIcon(QIcon("assets/icon.ico"))
     main_win.show()
 
     try:

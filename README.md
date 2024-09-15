@@ -1,5 +1,9 @@
 # Direction Field Visualizer
 
+This visualizer allows you to plot the direction field of a given differential equation. You can zoom in and out, move around and watch the direction field change in real time as well as tracing individual solution curves. The arrows can also be colored according to the curvature of the solutions, which can result in some truly spectacular images, see [gallery](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/gallery).
+
+## What is a direction field?
+
 A direction field is a graphical representation of the solutions to a first-order ordinary differential equation of the form
 
 $$\frac{dy}{dx} = f(x,y).$$
@@ -8,19 +12,26 @@ The principle of the direction field is to draw small line segments for each poi
 
 Let's see an example. Consider the differential equation $y'(x)=-x/y$. The direction field looks like this:
 
-![circle](images/circle.svg)
+![circle](assets/circle.svg)
 
 The tangent lines clearly form circles around the origin. The red semi-circles are two of the infinitely many solutions to the differential equation. We can guess that the general solution is of the form $y(x)=\pm\sqrt{A-x^2}$ which is indeed the case.
 
-This visualizer allows you to plot the direction field of a given differential equation. You can zoom in and out, move around and watch the direction field change in real time as well as tracing individual solution curves.
+## Installation
 
-## How to install
+### Windows
 
-Windows users can download an executable file from the [releases page](https://github.com/Couleslaw/Direction-Field-Visualizer/releases/latest). Linux and MacOS users can run the program by following the instructions below.
+Windows users can download an executable file from the [releases page](https://github.com/Couleslaw/Direction-Field-Visualizer/releases/latest).
 
-## Dependencies
+### Linux and macOS
 
 This project is not compatible with the newer versions of matplotlib. It works with version 3.6.2. I recommend creating a virtual environment and installing the dependencies from the `requirements.txt` file.
+
+Clone the repository:
+
+```bash
+git clone https://github.com/Couleslaw/Direction-Field-Visualizer.git
+cd Direction-Field-Visualizer
+```
 
 Create and activate the virtual environment:
 
@@ -30,72 +41,12 @@ source venv/bin/activate    # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
 
-Run the program with:
-
-```bash
-python3 main.py
-```
-
-Deactivate the virtual environment by running `deactivate`.
+Run the program with `python3 main.py`. The virtual environment can be deactivated by running `deactivate`.
 
 ## Usage
 
-### Entering the differential equation
+The program is very intuitive to use. You can enter a differential equation in the input field and press the `Graph` button. The program will then plot the direction field of the differential equation. You can zoom in and out with the mouse wheel, move around by dragging the plot and trace individual solution curves by right-clicking on the plot.
 
-- The differential equation must be syntactically correct. For example, you can't write `2x` instead of `2*x`. Use `**` for exponentiation. The available functions are
+Many parameters can be adjusted in the right-hand side panel including the number, width length and color scheme of the arrows. I encuorage you to play around with these settings to see what you can come up with.
 
-  - `sin`, `cos`, `tan`, `asin`, `acos`, `atan`
-  - `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`,
-  - `exp`, `ln`=`log`, `log2`, `log10`
-  - `sqrt`, `abs`, `sign`, `floor`, `ceil`
-  - constants `pi` and `e`
-
-- Confirm the differential equation by pressing the 'Enter' key or by clicking the 'Graph' button.
-
-### Movement in the figure
-
-- The graph can be moved by left-clicking and dragging
-- You can also zoom in and out using the scroll wheel
-
-### Tracing a solution curve
-
-- To trace a solution curve, right-click and a solution passing through that point will be drawn
-- Erase all drawn curves by moving, left-clicking or changing the parameters of the plot
-- It is possible to change the width of the curve
-- The tracing algorithm automatically picks a suitable $dx$ step size, but you can set it manually if you uncheck 'Auto trace dx'. Smaller $dx$ means better chance of detecting singularities but longer generation time
-
-![trace](images/trace_curve.svg)
-
-### Drawing a tangent line at cursor position
-
-- To draw a tangent line at the cursor's position, toggle 'Mouse line' on. It is off by default
-- You can change the width and length of this line
-
-![mouse line example](images/mouse_line.gif)
-
-### Changing graph parameters
-
-- The number of arrows drawn can by changed either by entering a number or by clicking the `+` and `-` buttons which change the value by 5
-- It is also possible to change the width and the length of the arrows
-
-![showcase](images/overall_showcase.gif)
-
-### Exporting the figure
-
-- The figure can be exported as a `.png` or `.svg` file by clicking the 'Save image' button or by pressing 'Ctrl+S'
-
-### Changing the limits of the coordinate axes
-
-- By default 'Equal axes' is toggled, but you can untoggle it to change the limits independently
-- You can't change limits manually while 'Equal axes' is toggled
-
-## Keybindings
-
-- Alt+left = decrease arrows by 5
-- Alt+right = increase arrows by 5
-- Alt+t = change focus to 'Trace line width' slider
-- Alt+a = cycle focus between 'Arrow length' and 'Arrow width' sliders
-- Alt+m = cycle focus between 'Mouse line length' and 'Mouse line width' sliders
-- Ctrl+m = toggle 'Mouse line' on and off
-- Enter = graph the direction field
-- Ctrl+s = save the figure
+For a more detailed explanation of the program, see the [wiki](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki).

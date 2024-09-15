@@ -360,8 +360,8 @@ class DirectionFieldBuilder:
 
         # draw the axes
         if self.show_axes:
-            self.plot.axes.axvline(0, color="b", linewidth=1.5)
-            self.plot.axes.axhline(0, color="b", linewidth=1.5)
+            self.plot.axes.axvline(0, color="black", linewidth=1)
+            self.plot.axes.axhline(0, color="black", linewidth=1)
 
         if self.drawing_mouse_line:
             self.draw_mouse_line()
