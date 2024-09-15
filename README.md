@@ -50,3 +50,5 @@ The program is very intuitive to use. You can enter a differential equation in t
 Many parameters can be adjusted in the right-hand side panel including the number, width, length and color scheme of the arrows. I encourage you to play around with these settings to see what you can come up with.
 
 For a more detailed explanation of the program and an image gallery, see the [wiki](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki).
+
+![art](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/images/gnuplot_parez.svg)
