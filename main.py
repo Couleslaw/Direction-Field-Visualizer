@@ -21,9 +21,9 @@ from PyQt6.QtWidgets import (
     QComboBox,
 )
 
-from canvas import Canvas
-from direction_field_builder import create_function_from_string
-from default_constants import *
+from lib.canvas import Canvas
+from lib.direction_field_builder import create_function_from_string
+from lib.default_constants import *
 
 ROUND_INPUT_LINES = 7
 
@@ -575,9 +575,9 @@ def main():
 
     # magic for pyinstaller to find the icon
     if getattr(sys, "frozen", False):
-        icon = os.path.join(sys._MEIPASS, "assets/icon.ico")
+        icon = os.path.join(sys._MEIPASS, "icon.ico")
     else:
-        icon = "assets/icon.ico"
+        icon = "icon.ico"
 
     main_win.setWindowIcon(QIcon(icon))
     main_win.show()

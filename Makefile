@@ -1,9 +1,9 @@
-all: direction-field-visualizer.exe
+all: direction_field_visualizer.exe
 
 clean:
-    rm -rf dist build main.spec direction-field-visualizer.exe
+	rm -rf dist build main.spec direction_field_visualizer.exe
 
-direction-field-visualizer.exe: main.py
-    pyinstaller -w --onefile --clean -y --icon=assets/icon.ico --add-data="assets\icon.ico;assets" main.py
-	mv dist/main.exe direction-field-visualizer.exe
-	rm -rf dist build main.spec
+direction_field_visualizer.exe: main.py lib/canvas.py lib/default_constants.py lib/direction_field_builder.py icon.ico
+	pyinstaller -w --onefile --clean -y --icon=icon.ico --add-data="icon.ico;." main.py;
+	mv dist/main.exe direction_field_visualizer.exe;
+	rm -rf dist build main.spec;
