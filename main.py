@@ -21,9 +21,9 @@ from PyQt6.QtWidgets import (
     QComboBox,
 )
 
-from lib.canvas import Canvas
-from lib.direction_field_builder import create_function_from_string
-from lib.default_constants import *
+from src.canvas import Canvas
+from src.direction_field_builder import create_function_from_string
+from src.default_constants import *
 
 ROUND_INPUT_LINES = 7
 
