@@ -1,4 +1,5 @@
 import sys
+import os
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
@@ -571,7 +572,14 @@ def main():
     myApp = MyApp()
     main_win = QMainWindow()
     main_win.setCentralWidget(myApp)
-    main_win.setWindowIcon(QIcon("assets/icon.ico"))
+
+    # magic for pyinstaller to find the icon
+    if getattr(sys, "frozen", False):
+        icon = os.path.join(sys._MEIPASS, "assets/icon.ico")
+    else:
+        icon = "assets/icon.ico"
+
+    main_win.setWindowIcon(QIcon(icon))
     main_win.show()
 
     try:
