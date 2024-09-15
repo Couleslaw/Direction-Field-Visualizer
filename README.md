@@ -1,6 +1,6 @@
 # Direction Field Visualizer
 
-This visualizer allows you to plot the direction field of a given differential equation. You can zoom in and out, move around and watch the direction field change in real time as well as tracing individual solution curves. The arrows can also be colored according to the curvature of the solutions, which can result in some truly spectacular images, see [gallery](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/gallery).
+This visualizer allows you to plot the direction field of a given differential equation. You can zoom in and out, move around and watch the direction field change in real time as well as tracing individual solution curves. The arrows can also be colored according to the curvature of the solutions, which can result in some truly spectacular images, see the [gallery](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/gallery).
 
 ## What is a direction field?
 
@@ -47,6 +47,6 @@ Run the program with `python3 main.py`. The virtual environment can be deactivat
 
 The program is very intuitive to use. You can enter a differential equation in the input field and press the `Graph` button. The program will then plot the direction field of the differential equation. You can zoom in and out with the mouse wheel, move around by dragging the plot and trace individual solution curves by right-clicking on the plot.
 
-Many parameters can be adjusted in the right-hand side panel including the number, width length and color scheme of the arrows. I encuorage you to play around with these settings to see what you can come up with.
+Many parameters can be adjusted in the right-hand side panel including the number, width, length and color scheme of the arrows. I encourage you to play around with these settings to see what you can come up with.
 
-For a more detailed explanation of the program, see the [wiki](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki).
+For a more detailed explanation of the program and an image gallery, see the [wiki](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki).
