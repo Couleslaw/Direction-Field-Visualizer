@@ -350,7 +350,7 @@ class MyApp(QWidget):
             self,
             "Save File",
             f"",
-            "SVG (*.svg);; PNG (*.png);; PDF (*.pdf)",
+            "SVG (*.svg);; PNG (*.png);; PDF (*.pdf);; All Files (*)",
         )
         if file_name:
             self.canvas.figure.savefig(file_name, bbox_inches="tight")

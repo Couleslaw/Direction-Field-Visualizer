@@ -33,16 +33,22 @@ DEFAULT_COLOR_MAP = "viridis"
 AVAILABLE_COLOR_MAPS = [
     "viridis",
     "plasma",
-    "cividis",
+    "inferno",
+    "hot",
     "turbo",
     "gnuplot",
-    "brg",
+    "gnuplot2",
+    "RdPu",
     "gray",
-    "spring",
+    "bone",
+    "pink",
+    "cividis",
     "cool",
-    "hot",
-    "rainbow",
+    "ocean",
     "prism",
+    "rainbow",
+    "gist_rainbow",
+    "gist_stern",
 ]
 
 # zoom

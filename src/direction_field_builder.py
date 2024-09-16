@@ -258,6 +258,8 @@ class DirectionFieldBuilder:
         def norm(x):
             """normalizes x to values between 0 and 1 while ignoring values off screen and the most extreme value"""
             on_screen = x[np.logical_not(ignore)]
+            if len(on_screen) == 0:
+                return Normalize()(x)
             # if there is only one max value, which is more than twice as big as the second max value
             # it is quite likely that this is a fluke caused by division by zero --> ignore it
             max_val = max(on_screen)
