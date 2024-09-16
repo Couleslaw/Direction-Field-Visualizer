@@ -43,6 +43,17 @@ pip install -r requirements.txt
 
 Run the program with `python3 main.py`. The virtual environment can be deactivated by running `deactivate`.
 
+#### Building using pyinstaller
+
+If you don't want to activate the virtual environment every time you want to run the program, you can use [pyinstaller](https://pyinstaller.org/en/stable/usage.html) to create an executable file. Ensure that the virtual environment is activated and run the following command:
+
+```bash
+pip install pyinstaller
+make
+```
+
+This will create an executable file named `direction_field_visualizer`.
+
 ## Usage
 
 The program is very intuitive to use. You can enter a differential equation in the input field and press the `Graph` button. The program will then plot the direction field of the differential equation. You can zoom in and out with the mouse wheel, move around by dragging the plot and trace individual solution curves by right-clicking on the plot.
