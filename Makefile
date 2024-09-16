@@ -4,5 +4,5 @@ clean:
 	rm -rf build direction_field_visualizer.exe direction_field_visualizer.spec
 
 direction_field_visualizer.exe: main.py src/canvas.py src/default_constants.py src/direction_field_builder.py icon.ico
-	pyinstaller -F -w --icon=icon.ico --add-data="icon.ico;." --distpath . --name "direction_field_visualizer" --hidden-import "matplotlib.backends.backend_svg" --hidden-import "matplotlib.backends.backend_pdf"  main.py
+	pyinstaller -F -w --icon=icon.ico --add-data="icon.ico:." --distpath . --name "direction_field_visualizer" --hidden-import "matplotlib.backends.backend_svg" --hidden-import "matplotlib.backends.backend_pdf"  main.py
 	rm -rf build direction_field_visualizer.spec
