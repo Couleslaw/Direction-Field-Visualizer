@@ -12,7 +12,7 @@ The principle of the direction field is to draw small line segments for each poi
 
 Let's see an example. Consider the differential equation $y'(x)=-x/y$. The direction field looks like this:
 
-![circle](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/images/circle.svg)
+![circle](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/images/circle.png)
 
 The tangent lines clearly form circles around the origin. The red semi-circles are two of the infinitely many solutions to the differential equation. We can guess that the general solution is of the form $y(x)=\pm\sqrt{A-x^2}$ which is indeed the case.
 
@@ -62,4 +62,4 @@ Many parameters can be adjusted in the right-hand side panel including the numbe
 
 For a more detailed explanation of the program and an image gallery, see the [wiki](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki).
 
-![art](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/images/gnuplot_parez.svg)
+![art](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/images/gnuplot_parez.png)
