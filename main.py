@@ -189,7 +189,7 @@ class MyApp(QWidget):
         # create the 'color precision' slider
         self.slider_cp = QSlider(Qt.Orientation.Horizontal)
         self.slider_cp.setMinimum(1)
-        self.slider_cp.setMaximum(7)
+        self.slider_cp.setMaximum(10)
         self.slider_cp.setValue(DEFAULT_COLOR_PRECISION)
         self.slider_cp.setMinimumWidth(150)
         self.slider_cp.setTickInterval(1)
@@ -219,7 +219,7 @@ class MyApp(QWidget):
         self.mouseLine = QCheckBox("Mouse line")
         self.mouseLine.stateChanged.connect(self.checked_mouseLine)
         self.mouseLine.setChecked(False)
-        self.mouseLine.setShortcut("Ctrl+M")
+        self.mouseLine.setShortcut("Ctrl+&M")
         self.sidebarLayout.addWidget(self.mouseLine)
 
         # create the 'Mouse line length' slider

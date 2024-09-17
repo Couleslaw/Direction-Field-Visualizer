@@ -12,7 +12,7 @@ The principle of the direction field is to draw small line segments for each poi
 
 Let's see an example. Consider the differential equation $y'(x)=-x/y$. The direction field looks like this:
 
-![circle](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/images/circle.svg)
+![circle](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/images/docs/circle.svg)
 
 The tangent lines clearly form circles around the origin. The red semi-circles are two of the infinitely many solutions to the differential equation. We can guess that the general solution is of the form $y(x)=\pm\sqrt{A-x^2}$ which is indeed the case.
 
