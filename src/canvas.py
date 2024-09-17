@@ -37,6 +37,18 @@ class Canvas(FigureCanvas):
     def set_ylim(self, ylim):
         self.ax.set_ylim(ylim)
 
+    def centralize_plot_x(self):
+        xlim = self.get_xlim()
+        x_range = xlim[1] - xlim[0]
+        self.set_xlim([-x_range / 2, x_range / 2])
+        self.redraw()
+
+    def centralize_plot_y(self):
+        ylim = self.get_ylim()
+        y_range = ylim[1] - ylim[0]
+        self.set_ylim([-y_range / 2, y_range / 2])
+        self.redraw()
+
     def get_num_arrows(self):
         return self.dfb.num_arrows
 
@@ -54,6 +66,10 @@ class Canvas(FigureCanvas):
 
     def set_color_intensity(self, color_intensity):
         self.dfb.color_intensity = color_intensity
+        self.redraw()
+
+    def set_color_precision(self, color_precision):
+        self.dfb.color_precision = color_precision
         self.redraw()
 
     def set_is_colored(self, is_colored):

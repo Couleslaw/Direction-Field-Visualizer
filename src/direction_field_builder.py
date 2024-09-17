@@ -62,6 +62,7 @@ class DirectionFieldBuilder:
         self.indicate_colors = True
         self.color_intensity = DEFAULT_COLOR_INTENSITY
         self.color_map_name = DEFAULT_COLOR_MAP
+        self.color_precision = DEFAULT_COLOR_PRECISION
 
         self.num_arrows = DEFAULT_NUM_ARROWS
         self.arrow_length = DEFAULT_ARROW_LENGTH
@@ -221,7 +222,8 @@ class DirectionFieldBuilder:
         Returns the curvature of the function at the point (x, y)
         """
 
-        dx = min(1e-6, self.get_auto_dx())
+        exponent = -self.color_precision - 1
+        dx = 10**exponent
         if fabs(x - int(x)) < dx:
             x = int(x)
         if fabs(y - int(y)) < dx:
@@ -236,8 +238,8 @@ class DirectionFieldBuilder:
 
         xlim = self.plot.axes.get_xlim()
         ylim = self.plot.axes.get_ylim()
-        fix_dx = max(0.001, (xlim[1] - xlim[0]) / 1000)
-        fix_dy = max(0.001, (ylim[1] - ylim[0]) / 1000)
+        fix_dx = max(0.002, (xlim[1] - xlim[0]) / 1000)
+        fix_dy = max(0.002, (ylim[1] - ylim[0]) / 1000)
         try:
             return get_curvature(x, y)
         except:
@@ -262,6 +264,7 @@ class DirectionFieldBuilder:
                 return Normalize()(x)
             # if there is only one max value, which is more than twice as big as the second max value
             # it is quite likely that this is a fluke caused by division by zero --> ignore it
+            # in fact lets increase the number from 1 to a number based on #arrows
             max_val = max(on_screen)
             second_max = -np.inf
             num_max = 0
@@ -273,7 +276,8 @@ class DirectionFieldBuilder:
             if second_max == -np.inf:
                 second_max = max_val
 
-            if num_max == 1 and max_val > 2 * second_max:
+            limit = max(1, self.num_arrows // 1000)
+            if 1 <= num_max <= limit and max_val > 2 * second_max:
                 max_val = second_max
 
             return Normalize(clip=True, vmin=0, vmax=max_val)(x)

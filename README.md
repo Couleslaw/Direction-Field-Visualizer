@@ -62,4 +62,4 @@ Many parameters can be adjusted in the right-hand side panel including the numbe
 
 For a more detailed explanation of the program and an image gallery, see the [wiki](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki).
 
-![art](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/images/png-border/gnuplot_parez.png)
+![art](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/images/png-border/inferno_sin.png)

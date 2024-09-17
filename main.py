@@ -160,6 +160,61 @@ class MyApp(QWidget):
         # add some spacing
         self.sidebarLayout.addItem(spacer)
 
+        # create the 'Color by curvature' checkbox
+        self.colors = QCheckBox("Color by curvature")
+        self.colors.setChecked(True)
+        self.colors.stateChanged.connect(self.checked_color)
+        self.sidebarLayout.addWidget(self.colors)
+
+        # create the 'color intensity' slider
+        self.slider_c = QSlider(Qt.Orientation.Horizontal)
+        self.slider_c.setMinimum(MIN_COLOR_INTENSITY)
+        self.slider_c.setMaximum(15)
+        self.slider_c.setValue(DEFAULT_COLOR_INTENSITY)
+        self.slider_c.setMinimumWidth(150)
+        self.slider_c.setTickInterval(1)
+        self.slider_c.setSingleStep(1)
+        self.slider_c.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.slider_c.valueChanged.connect(self.changed_color_intensity)
+        self.label_c = QLabel()
+        self.label_c.setText(f"  &Color contrast: {DEFAULT_COLOR_INTENSITY}   ")
+        self.label_c.setBuddy(
+            self.slider_c
+        )  # changes focus to the slider if 'Alt+c' is pressed
+        form = QVBoxLayout()
+        form.addWidget(self.label_c)
+        form.addWidget(self.slider_c)
+        self.sidebarLayout.addLayout(form)
+
+        # create the 'color precision' slider
+        self.slider_cp = QSlider(Qt.Orientation.Horizontal)
+        self.slider_cp.setMinimum(1)
+        self.slider_cp.setMaximum(7)
+        self.slider_cp.setValue(DEFAULT_COLOR_PRECISION)
+        self.slider_cp.setMinimumWidth(150)
+        self.slider_cp.setTickInterval(1)
+        self.slider_cp.setSingleStep(1)
+        self.slider_cp.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.slider_cp.valueChanged.connect(self.updated_color_precision)
+        self.label_cp = QLabel()
+        self.label_cp.setText(f"  &Color precision: {DEFAULT_COLOR_PRECISION}   ")
+        self.label_cp.setBuddy(self.slider_cp)
+        form = QVBoxLayout()
+        form.addWidget(self.label_cp)
+        form.addWidget(self.slider_cp)
+        self.sidebarLayout.addLayout(form)
+
+        # create color map dropdown list
+        self.color_map = QComboBox()
+        for color_map in AVAILABLE_COLOR_MAPS:
+            self.color_map.addItem(color_map)
+        self.color_map.setCurrentText(DEFAULT_COLOR_MAP)
+        self.color_map.currentTextChanged.connect(self.canvas.set_color_map)
+        self.sidebarLayout.addWidget(self.color_map)
+
+        # add some spacing
+        self.sidebarLayout.addItem(spacer)
+
         # create the 'Mouse line' checkbox
         self.mouseLine = QCheckBox("Mouse line")
         self.mouseLine.stateChanged.connect(self.checked_mouseLine)
@@ -206,43 +261,6 @@ class MyApp(QWidget):
         form.addWidget(self.label_mw)
         form.addWidget(self.slider_mw)
         self.sidebarLayout.addLayout(form)
-        # add some spacing
-        self.sidebarLayout.addItem(spacer)
-
-        # create the 'Color by curvature' checkbox
-        self.colors = QCheckBox("Color by curvature")
-        self.colors.setChecked(True)
-        self.colors.stateChanged.connect(self.checked_color)
-        self.sidebarLayout.addWidget(self.colors)
-
-        # create the 'color intensity' slider
-        self.slider_c = QSlider(Qt.Orientation.Horizontal)
-        self.slider_c.setMinimum(MIN_COLOR_INTENSITY)
-        self.slider_c.setMaximum(15)
-        self.slider_c.setValue(DEFAULT_COLOR_INTENSITY)
-        self.slider_c.setMinimumWidth(150)
-        self.slider_c.setTickInterval(1)
-        self.slider_c.setSingleStep(1)
-        self.slider_c.setTickPosition(QSlider.TickPosition.TicksBelow)
-        self.slider_c.valueChanged.connect(self.changed_color_intensity)
-        self.label_c = QLabel()
-        self.label_c.setText(f"  &Color contrast: {DEFAULT_COLOR_INTENSITY}   ")
-        self.label_c.setBuddy(
-            self.slider_c
-        )  # changes focus to the slider if 'Alt+c' is pressed
-        form = QVBoxLayout()
-        form.addWidget(self.label_c)
-        form.addWidget(self.slider_c)
-        self.sidebarLayout.addLayout(form)
-
-        # create color map dropdown list
-        self.color_map = QComboBox()
-        for color_map in AVAILABLE_COLOR_MAPS:
-            self.color_map.addItem(color_map)
-        self.color_map.setCurrentText(DEFAULT_COLOR_MAP)
-        self.color_map.currentTextChanged.connect(self.canvas.set_color_map)
-        self.sidebarLayout.addWidget(self.color_map)
-
         # add some spacing
         self.sidebarLayout.addItem(spacer)
 
@@ -344,6 +362,18 @@ class MyApp(QWidget):
 
         self.equalAxes.setChecked(MyApp.equal_axes)
 
+        # create the 'center x' button
+        self.center_x_button = QPushButton("Center &X")
+        self.center_x_button.clicked.connect(self.canvas.centralize_plot_x)
+        self.center_x_button.setShortcut("Alt+X")
+        self.bot_barLayout.addWidget(self.center_x_button)
+
+        # create the 'center y' button
+        self.center_y_button = QPushButton("Center &Y")
+        self.center_y_button.clicked.connect(self.canvas.centralize_plot_y)
+        self.center_y_button.setShortcut("Alt+Y")
+        self.bot_barLayout.addWidget(self.center_y_button)
+
     def show_save_file_dialog(self):
         """Opens a dialog to save the current figure as a png or svg file."""
         file_name, _ = QFileDialog.getSaveFileName(
@@ -412,6 +442,12 @@ class MyApp(QWidget):
         color_intensity = self.slider_c.value()
         self.label_c.setText(f"  &Color contrast: {color_intensity}")
         self.canvas.set_color_intensity(color_intensity)
+
+    def updated_color_precision(self):
+        """Updates the color precision according to the slider."""
+        color_precision = self.slider_cp.value()
+        self.label_cp.setText(f"  &Color precision: {color_precision}")
+        self.canvas.set_color_precision(color_precision)
 
     def checked_autoTrace(self, checked):
         """Turns automatic trace dx on and off"""
@@ -575,9 +611,9 @@ def main():
 
     # magic for pyinstaller to find the icon
     if getattr(sys, "frozen", False):
-        icon = os.path.join(sys._MEIPASS, "icon.ico")
+        icon = os.path.join(sys._MEIPASS, "src/icon.ico")
     else:
-        icon = "icon.ico"
+        icon = "src/icon.ico"
 
     main_win.setWindowIcon(QIcon(icon))
     main_win.show()
