@@ -45,11 +45,11 @@ Run the program with `python3 main.py`. The virtual environment can be deactivat
 
 #### Building using pyinstaller
 
-If you don't want to activate the virtual environment every time you want to run the program, you can use [pyinstaller](https://pyinstaller.org/en/stable/usage.html) to create an executable file. Ensure that the virtual environment is activated and run the following command:
+If you don't want to activate the virtual environment every time you want to run the program, you can use [pyinstaller](https://pyinstaller.org/en/stable/usage.html) to create an executable file. Ensure that the virtual environment is activated and run `pip install pyinstaller`. If you have [make](https://www.gnu.org/software/make/) installed, you can simply run `make` to build the executable. Otherwise, run the following commands:
 
 ```bash
-pip install pyinstaller
-make
+pyinstaller -F -w --icon=src/icon.ico --add-data="src/icon.ico:src" --distpath . --name "direction_field_visualizer" --hidden-import "matplotlib.backends.backend_svg" --hidden-import "matplotlib.backends.backend_pdf"  main.py
+rm -rf build direction_field_visualizer.spec
 ```
 
 This will create an executable file named `direction_field_visualizer`.

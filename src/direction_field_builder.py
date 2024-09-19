@@ -35,6 +35,12 @@ from math import (
 
 ln = log
 abs = fabs
+cot = lambda x: cos(x) / sin(x)
+sec = lambda x: 1 / cos(x)
+csc = lambda x: 1 / sin(x)
+acot = lambda x: pi / 2 - atan(x)
+asec = lambda x: acos(1 / x)
+acsc = lambda x: asin(1 / x)
 sign = lambda x: int((x > 0)) - int((x < 0))
 
 
