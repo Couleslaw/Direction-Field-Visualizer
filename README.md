@@ -24,6 +24,8 @@ Windows users can download an executable file from the [releases page](https://g
 
 ### Linux and macOS
 
+Ensure that you have [python](https://www.python.org/) and [git](https://git-scm.com/) installed on your system.
+
 This project is not compatible with the newer versions of matplotlib. It works with version 3.6.2. I recommend creating a virtual environment and installing the dependencies from the `requirements.txt` file.
 
 Clone the repository:
@@ -45,7 +47,7 @@ Run the program with `python3 main.py`. The virtual environment can be deactivat
 
 #### Building using pyinstaller
 
-If you don't want to activate the virtual environment every time you want to run the program, you can use [pyinstaller](https://pyinstaller.org/en/stable/usage.html) to create an executable file. Ensure that the virtual environment is activated and run `pip install pyinstaller`. If you have [make](https://www.gnu.org/software/make/) installed, you can simply run `make` to build the executable. Otherwise, run the following commands:
+If you don't want to activate the virtual environment every time you want to run the program, you can use [pyinstaller](https://pyinstaller.org/en/stable/usage.html) to create an executable file. Ensure that the virtual environment is **activated** and run `pip install pyinstaller`. If you have [make](https://www.gnu.org/software/make/) installed, you can simply run `make` to build the executable. Otherwise, run the following commands:
 
 ```bash
 pyinstaller -F -w --icon=src/icon.ico --add-data="src/icon.ico:src" --distpath . --name "direction_field_visualizer" --hidden-import "matplotlib.backends.backend_svg" --hidden-import "matplotlib.backends.backend_pdf"  main.py

@@ -51,6 +51,10 @@ def create_function_from_string(string):
     return eval(f"lambda x, y: {string}")
 
 
+def eval_expression(expression):
+    return eval(expression)
+
+
 class DirectionFieldBuilder:
     """Plots direction fields using the matplotlib library."""
 
@@ -392,6 +396,11 @@ class DirectionFieldBuilder:
         xlim = self.plot.axes.get_xlim()
         return (xlim[1] - xlim[0]) / TRACE_AUTO_DX_GRANULARITY
 
+    def trace_from_point(self, x, y):
+        """Traces the curve from the point (x, y)"""
+        self.press = (x, y)
+        self.trace_curve()
+
     def trace_curve(self):
         """Draws a solution curve passing through self.press"""
         if self.press is None:
@@ -567,7 +576,7 @@ class DirectionFieldBuilder:
 
                 # if y is out of bounds --> let it go for a while, it might come back
                 screen_height = ylim[1] - ylim[0]
-                if fabs(center[1] - ylim[0]) > 20 * screen_height:
+                if fabs(center[1] - ylim[0]) > 30 * screen_height:
                     break
 
                 # add a new point if the segment has reached the desired length

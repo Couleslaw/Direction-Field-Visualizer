@@ -19,13 +19,53 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
 )
 
 from src.canvas import Canvas
-from src.direction_field_builder import create_function_from_string
+from src.direction_field_builder import create_function_from_string, eval_expression
 from src.default_constants import *
 
 ROUND_INPUT_LINES = 7
+
+
+class CoordinateDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle("Input Coordinates")
+
+        # Layout for dialog window
+        layout = QVBoxLayout()
+
+        # X coordinate input
+        self.x_label = QLabel("Enter X coordinate:")
+        self.x_input = QLineEdit(self)
+        layout.addWidget(self.x_label)
+        layout.addWidget(self.x_input)
+
+        # Y coordinate input
+        self.y_label = QLabel("Enter Y coordinate:")
+        self.y_input = QLineEdit(self)
+        layout.addWidget(self.y_label)
+        layout.addWidget(self.y_input)
+
+        # OK and Cancel buttons
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        layout.addWidget(self.button_box)
+        self.setLayout(layout)
+
+    def get_coordinates(self):
+        """Return the X and Y coordinates as a tuple"""
+        x = self.x_input.text()
+        y = self.y_input.text()
+        return x, y
 
 
 class MyApp(QWidget):
@@ -284,11 +324,19 @@ class MyApp(QWidget):
         form.addWidget(self.slider_w)
         self.sidebarLayout.addLayout(form)
 
+        layout = QHBoxLayout()
         # create the 'Auto trace dx' checkbox
         self.autoTrace = QCheckBox("Auto trace dx")
         self.autoTrace.setChecked(True)
         self.autoTrace.stateChanged.connect(self.checked_autoTrace)
         self.sidebarLayout.addWidget(self.autoTrace)
+        layout.addWidget(self.autoTrace)
+        # add button for specifying x and y coordinates of the start point
+        self.trace_point_button = QPushButton("Trace point")
+        self.trace_point_button.clicked.connect(self.clicked_trace_point_button)
+        self.trace_point_button.setShortcut("Ctrl+T")
+        layout.addWidget(self.trace_point_button)
+        self.sidebarLayout.addLayout(layout)
 
         # create the 'trace dx' input line
         self.trace_dx_input = QLineEdit()
@@ -480,6 +528,36 @@ class MyApp(QWidget):
         """Sets trace dx to the one given"""
         dx = self.canvas.dfb.get_auto_dx()
         self.trace_dx_input.setText(f"{dx:.10f}")
+
+    def clicked_trace_point_button(self):
+        """Opens a dialog to input the x and y coordinates of the start point."""
+        dialog = CoordinateDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            x, y = dialog.get_coordinates()
+            try:
+                x = float(eval_expression(x))
+                y = float(eval_expression(y))
+                xlim = self.canvas.get_xlim()
+                ylim = self.canvas.get_ylim()
+                if x < xlim[0] or x > xlim[1]:
+                    QMessageBox.warning(self, "Warning", f"X is out of bounds, not tracing.")
+                    return
+                elif y < ylim[0] or y > ylim[1]:
+                    # create messagebox to ask if the user wishes to continue
+                    continue_messagebox = QMessageBox(self)
+                    continue_messagebox.setWindowTitle("Warning")
+                    continue_messagebox.setText("Y is out of bounds, continue tracing?")
+                    continue_messagebox.setStandardButtons(
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                    )
+                    continue_messagebox.setDefaultButton(QMessageBox.StandardButton.No)
+                    continue_messagebox.setIcon(QMessageBox.Icon.Warning)
+                    continue_messagebox.exec()
+                    if continue_messagebox.result() == QMessageBox.StandardButton.No:
+                        return
+                self.canvas.dfb.trace_from_point(x, y)
+            except Exception:
+                QMessageBox.critical(self, "Error", f"Invalid coordinates.")
 
     def update_xmin(self):
         """Updates xmin according to the xmin input line."""
