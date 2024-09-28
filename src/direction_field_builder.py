@@ -309,12 +309,21 @@ class DirectionFieldBuilder:
         diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
         vector_len = diagonal / 200 * self.arrow_length
 
-        step = (xlim[1] - xlim[0]) / self.num_arrows
-        margin = (self.num_arrows // 6) * step + (step / 2 if self.num_arrows % 2 == 0 else 0)
-
+        x_step = (xlim[1] - xlim[0]) / self.num_arrows
+        y_step = (
+            (ylim[1] - ylim[0]) / self.num_arrows
+            if self.plot.axes.get_aspect() != 1  # if auto axes
+            else x_step  # if equal_axes
+        )
+        x_margin = (self.num_arrows // 6) * x_step + (
+            x_step / 2 if self.num_arrows % 2 == 0 else 0
+        )
+        y_margin = (self.num_arrows // 6) * y_step + (
+            y_step / 2 if self.num_arrows % 2 == 0 else 0
+        )
         f = lambda n, s: s * (n // s)
-        xs = np.arange(f(xlim[0], step) - margin, xlim[1] + step + margin, step)
-        ys = np.arange(f(ylim[0], step) - margin, ylim[1] + step + margin, step)
+        xs = np.arange(f(xlim[0], x_step) - x_margin, xlim[1] + x_step + x_margin, x_step)
+        ys = np.arange(f(ylim[0], y_step) - y_margin, ylim[1] + y_step + y_margin, y_step)
         # try to get the arrows
         try:
             arrows = []
