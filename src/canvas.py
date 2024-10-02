@@ -88,12 +88,6 @@ class Canvas(FigureCanvas):
         self.dfb.show_axes = enabled
         self.redraw()
 
-    def set_trace_lines_width(self, trace_lines_width):
-        self.dfb.trace_lines_width = trace_lines_width
-
-    def set_trace_lines_dx(self, dx):
-        self.dfb.trace_dx = dx
-
     def set_mouse_line_width(self, mouse_line_width):
         self.dfb.mouse_line_width = mouse_line_width
 

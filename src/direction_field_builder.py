@@ -7,44 +7,9 @@ import numpy as np
 np.seterr(divide="raise", invalid="ignore")
 
 
-# import standard function from math
-from math import (
-    sin,
-    cos,
-    tan,
-    asin,
-    acos,
-    atan,
-    sinh,
-    cosh,
-    tanh,
-    asinh,
-    acosh,
-    atanh,
-    exp,
-    log,
-    log2,
-    log10,
-    sqrt,
-    fabs,
-    floor,
-    ceil,
-    pi,
-    e,
-)
-
-ln = log
-abs = fabs
-cot = lambda x: cos(x) / sin(x)
-sec = lambda x: 1 / cos(x)
-csc = lambda x: 1 / sin(x)
-acot = lambda x: pi / 2 - atan(x)
-asec = lambda x: acos(1 / x)
-acsc = lambda x: asin(1 / x)
-sign = lambda x: int((x > 0)) - int((x < 0))
-
-
+from src.math_functions import *
 from src.default_constants import *
+from src.tracing import TraceSettings, find_first_solution
 
 
 def create_function_from_string(string):
@@ -77,12 +42,11 @@ class DirectionFieldBuilder:
         self.num_arrows = DEFAULT_NUM_ARROWS
         self.arrow_length = DEFAULT_ARROW_LENGTH
         self.arrow_width = DEFAULT_ARROW_WIDTH
-        self.trace_lines_width = DEFAULT_TRACE_LINES_WIDTH
         self.mouse_line_width = DEFAULT_MOUSE_LINE_WIDTH
         self.mouse_line_length = DEFAULT_MOUSE_LINE_LENGTH
         self.function = create_function_from_string(DEFAULT_FUNCTION)
-        self.auto_trace_dx = True
-        self.trace_dx = 0.01
+        self.function_string = DEFAULT_FUNCTION
+        self.trace_settings = TraceSettings()
 
         self.motion_counter = 0
         self.arrows_cache = {}
@@ -190,7 +154,6 @@ class DirectionFieldBuilder:
         self.plot.axes.set_xlim(xlim)
         self.plot.axes.set_ylim(ylim)
         self.app.update_displayed_lims()
-        self.app.update_displayed_trace_dx()
         self.draw_field()
 
     def get_arrow(self, x, y, arrow_len, use_cache=True):
@@ -392,9 +355,11 @@ class DirectionFieldBuilder:
             self.draw_mouse_line()
         self.plot.figure.canvas.draw()
 
-    def get_auto_dx(self):
+    def get_trace_dx(self):
+        """Calculates the dx for tracing the curve"""
         xlim = self.plot.axes.get_xlim()
-        return (xlim[1] - xlim[0]) / TRACE_AUTO_DX_GRANULARITY
+        granularity = precision_to_granularity(self.trace_settings.trace_precision)
+        return (xlim[1] - xlim[0]) / 10**granularity
 
     def trace_from_point(self, x, y):
         """Traces the curve from the point (x, y)"""
@@ -411,12 +376,16 @@ class DirectionFieldBuilder:
         xlim = self.plot.axes.get_xlim()
 
         # the curves are made out of line segments of this length
-        min_segment_length = (
-            np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
-            / TRACE_NUM_SEGMENTS_IN_DIAGONAL
-        )
+        diagonal_length = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
+        min_segment_length = diagonal_length / TRACE_NUM_SEGMENTS_IN_DIAGONAL
 
-        dx = self.get_auto_dx() if self.auto_trace_dx else self.trace_dx
+        dx = self.get_trace_dx()
+        if not self.trace_settings.auto_singularity_detection:
+            singularity_eq = create_function_from_string(
+                self.trace_settings.singularity_equations[self.function_string]
+            )
+        else:
+            singularity_eq = None
 
         def trace(trace_forward: bool):
             """
@@ -442,6 +411,49 @@ class DirectionFieldBuilder:
 
             # singularity ~ infinite growth --> dx needs to be very small
             singularity_dx = min(1e-6, dx / 1000) * (1 if trace_forward else -1)
+            singularity_alert_distance = diagonal_length / 100
+
+            def dist_to_singularity(x, y, singularity_eq):
+                singularity_guess = find_first_solution(self.function, singularity_eq, x, y)
+                return sqrt((x - singularity_guess[0]) ** 2 + (y - singularity_guess[1]) ** 2)
+
+            def possible_singularity_detected(slope, x, y, singularity_eq, out_dist_list):
+                if self.trace_settings.auto_singularity_detection:
+                    return fabs(slope) > self.trace_settings.singularity_min_slope
+
+                dist = dist_to_singularity(x, y, singularity_eq)
+                out_dist_list.append(dist)
+                if dist < singularity_alert_distance:
+                    print(f"x={x:.4f}, y={y:.4f}, slope={slope:.4f}, dist={dist:.4f}")
+                    return True
+                if (
+                    dist < diagonal_length / 20
+                    and fabs(slope) > self.trace_settings.singularity_min_slope
+                ):
+                    return True
+                if fabs(slope) > 20:
+                    print(f"!!! x={x:.4f}, y={y:.4f}, slope={slope:.4f}, dist={dist:.4f}")
+                return False
+
+                # diagonal = np.sqrt(
+                #     (self.plot.axes.get_xlim()[1] - self.plot.axes.get_xlim()[0]) ** 2
+                #     + (self.plot.axes.get_ylim()[1] - self.plot.axes.get_ylim()[0]) ** 2
+                # )
+
+                # sdx = singularity_dx  # = 1e-12 * (1 if trace_forward else -1)
+
+                # def sing_der(x, y):
+                #     return (
+                #         singularity_eq(x + sdx, y + sdx * slope) - singularity_eq(x, y)
+                #     ) / fabs(sdx)
+
+                # if fabs(singularity_eq(x, y)) < 0.1 or sing_der(x, y) < -1:
+                #     print(
+                #         f"{x:.4f}, {y:.4f}, {slope:.4f}, {singularity_eq(x, y):.7f}, {sing_der(x, y):.4f}"
+                #     )
+                #     return True
+
+                # return False
 
             def handle_singularity(x, y):
                 """
@@ -457,15 +469,13 @@ class DirectionFieldBuilder:
                 try:
                     # get derivative at (x,y)
                     slope = self.function(x, y)
-                    if slope > 1e6:  # if its insanely high --> go to infinity
-                        return INFINITE
                     # move in the direction of the derivative
                     nx, ny = x + singularity_dx, y + singularity_dx * slope
                     # we are hopefully on the other side of the singularity now
                     # 1. calculate the derivative here
                     nslope = self.function(nx, ny)
                     # 2. calculate the second derivative here
-                    second_der_dx = singularity_dx**2
+                    second_der_dx = 1e-15
                     second_der = (
                         self.function(nx + second_der_dx, ny + second_der_dx * nslope) - nslope
                     ) / second_der_dx
@@ -477,6 +487,22 @@ class DirectionFieldBuilder:
                 # - this is either a singularity --> STOP/INFINITE
                 # - or just a really steep function --> then it would be monotonous
                 def can_continue():
+                    if fabs(self.function(x, y)) > 1e6:
+                        return False
+                    # if (
+                    #     not self.trace_settings.auto_singularity_detection
+                    #     and dist_to_singularity(x, y, singularity_eq)
+                    #     < singularity_alert_distance
+                    #     and fabs(slope) > 1000
+                    # ):
+                    #     return False
+
+                    # if not self.trace_settings.auto_singularity_detection:
+                    #     sing_eq_here = singularity_eq(x, y)
+                    #     sing_eq_next = singularity_eq(nx, ny)
+                    #     if sing_eq_here < 1e-3 and sing_eq_next > 50 * sing_eq_next:
+                    #         return False
+
                     vector = np.array([1, slope]) * singularity_dx
                     return is_monotonous_on(np.array([x, y]), vector / 5, 10)
 
@@ -485,6 +511,7 @@ class DirectionFieldBuilder:
                     if second_der > 0 and nslope < 0:  # convex down
                         return INFINITE
                     if second_der > 0 and nslope > 0:  # convex up
+                        print("convex up")
                         return CONTINUE if can_continue() else STOP
                     if second_der < 0 and nslope > 0:  # concave up
                         return CONTINUE if can_continue() else INFINITE
@@ -532,8 +559,8 @@ class DirectionFieldBuilder:
             center = np.array([x, y])  # center point
             segment_length = 0  # total length of the current segment
 
-            # how many CONTINUEs were there in a row
-            continue_count = 0
+            continue_count = 0  # how many CONTINUEs were there in a row
+            last_slope = self.function(center[0], center[1])
             while True:
                 try:
                     # get the direction vector
@@ -543,28 +570,44 @@ class DirectionFieldBuilder:
                     break
 
                 # if the slope is very high --> there might be a singularity
-                if fabs(der) > 70:
+                dist_wrapper = []
+                if possible_singularity_detected(
+                    der, center[0], center[1], singularity_eq, dist_wrapper
+                ):
                     result = handle_singularity(center[0], center[1])
 
                     if result == UNKNOWN or result == STOP:
+                        print("stop")
                         break
                     if result == INFINITE:
                         # the last line segment should go off the screen
-                        line.append(center + np.array([0, sign(der)]) * (ylim[1] - ylim[0]))
+                        line.append(
+                            center
+                            + np.array([0, sign(last_slope) * ((1 if trace_forward else -1))])
+                            * (ylim[1] - ylim[0])
+                        )
+                        print("infty", sign(der), center)
                         break
                     if result == CONTINUE:
                         continue_count += 1
                         # if there was 10 CONTINUEs in a row and the function seems to be monotonous in the near future
-                        if continue_count % 10 == 0 and is_monotonous_on(
-                            np.copy(center), vector / 5, 10
+                        if (
+                            self.trace_settings.auto_singularity_detection
+                            and continue_count % 10 == 0
+                            and is_monotonous_on(np.copy(center), vector / 5, 10)
                         ):
                             pass  # assume that there is no singularity --> this is to speed things up
                         else:
-                            # make the next step only 'singularity_dx' long --> it should be safe there
-                            vector = vector / vector[0] * singularity_dx
+                            # make the next x_step only 'singularity_dx' long --> it should be safe there
+                            if self.trace_settings.auto_singularity_detection:
+                                vector = vector / vector[0] * singularity_dx
+                            else:
+                                step = dist_wrapper[0] / 4
+                                vector = vector / np.linalg.norm(vector) * step
                     else:
                         # result is not CONTINUE --> reset counter
                         continue_count = 0
+                    last_slope = der
                 else:
                     # no singularity --> reset counter
                     continue_count = 0
@@ -576,8 +619,20 @@ class DirectionFieldBuilder:
 
                 # if y is out of bounds --> let it go for a while, it might come back
                 screen_height = ylim[1] - ylim[0]
-                if fabs(center[1] - ylim[0]) > 30 * screen_height:
-                    break
+                if center[1] < ylim[0] or center[1] > ylim[1]:
+                    dist = (
+                        fabs(center[1] - ylim[0])
+                        if center[1] < ylim[0]
+                        else fabs(center[1] - ylim[1])
+                    )
+                    if dist > screen_height * self.trace_settings.y_margin:
+                        break
+                    if not self.trace_settings.auto_singularity_detection:
+                        if (
+                            dist_to_singularity(center[0], center[1], singularity_eq)
+                            < singularity_alert_distance
+                        ):
+                            break
 
                 # add a new point if the segment has reached the desired length
                 segment_length += np.linalg.norm(vector)
@@ -592,8 +647,9 @@ class DirectionFieldBuilder:
         left_line = trace(trace_forward=False)
 
         # mapping 1->1, 10->7
-        line_width = 1 + 6 * (self.trace_lines_width - 1) / 9
-        lc = LineCollection([left_line, right_line], color="r", linewidth=line_width)
+        line_width = 1 + 6 * (self.trace_settings.line_width - 1) / 9
+        line_color = self.trace_settings.line_color
+        lc = LineCollection([left_line, right_line], color=line_color, linewidth=line_width)
         self.plot.axes.add_collection(lc)
         self.plot.figure.canvas.draw()
 

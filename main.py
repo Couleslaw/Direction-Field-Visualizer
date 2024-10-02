@@ -1,7 +1,8 @@
 import sys
 import os
+from numpy import random
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QColor
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -21,10 +22,16 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QColorDialog,
+    QGroupBox,
 )
 
 from src.canvas import Canvas
-from src.direction_field_builder import create_function_from_string, eval_expression
+from src.direction_field_builder import (
+    TraceSettings,
+    create_function_from_string,
+    eval_expression,
+)
 from src.default_constants import *
 
 ROUND_INPUT_LINES = 7
@@ -68,8 +75,275 @@ class CoordinateDialog(QDialog):
         return x, y
 
 
+class TraceSettingsDialog(QDialog):
+    def __init__(self, parent, trace_settings: TraceSettings, function: str, xlim, ylim):
+        super().__init__(parent)
+
+        self.setWindowTitle("Trace Settings")
+        self.setFixedWidth(250)
+        self.settings = trace_settings
+        self.function = function
+        self.xlim = xlim
+        self.ylim = ylim
+        self.selected_color = QColor(self.settings.line_color)
+
+        # Layout for dialog window
+        layout = QVBoxLayout()
+
+        # create the 'trace line width' slider
+        self.slider_w = QSlider(Qt.Orientation.Horizontal)
+        self.slider_w.setMinimum(1)
+        self.slider_w.setMaximum(10)
+        self.slider_w.setValue(self.settings.line_width)
+        self.slider_w.setMinimumWidth(150)
+        self.slider_w.setTickInterval(1)
+        self.slider_w.setSingleStep(1)
+        self.slider_w.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.slider_w.valueChanged.connect(self.changed_trace_lines_width)
+        self.label_w = QLabel()
+        self.label_w.setToolTip("Width of the trace lines.")
+        self.label_w.setText(f"  &Trace line width: {self.settings.line_width}   ")
+        self.label_w.setBuddy(self.slider_w)
+        form = QVBoxLayout()
+        form.addWidget(self.label_w)
+        form.addWidget(self.slider_w)
+        layout.addLayout(form)
+
+        # Horizontal layout for color button and color box
+        color_layout = QHBoxLayout()
+
+        # Button to open color picker dialog
+        self.color_button = QPushButton("Choose Color", self)
+        self.color_button.clicked.connect(self.open_color_dialog)
+        color_layout.addWidget(self.color_button)
+
+        # Color box (QLabel) to display the current color
+        self.color_box = QLabel(self)
+        self.color_box.setFixedSize(50, 20)  # Size of the color box
+        self.update_color_box()  # Set initial color to red
+        color_layout.addWidget(self.color_box)
+
+        layout.addLayout(color_layout)
+
+        # Advanced section (collapsible)
+        self.advanced_group_box = QGroupBox("Advanced Settings")
+        advanced_layout = QFormLayout()
+        self.advanced_group_box.setLayout(advanced_layout)
+        self.advanced_group_box.setVisible(False)  # Hidden by default
+        layout.addWidget(self.advanced_group_box)
+
+        # create trace precision slider
+        self.slider_p = QSlider(Qt.Orientation.Horizontal)
+        self.slider_p.setMinimum(MIN_TRACE_PRECISION)
+        self.slider_p.setMaximum(MAX_TRACE_PRECISION)
+        self.slider_p.setValue(self.settings.trace_precision)
+        self.slider_p.setMinimumWidth(150)
+        self.slider_p.setTickInterval(1)
+        self.slider_p.setSingleStep(1)
+        self.slider_p.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.slider_p.valueChanged.connect(self.changed_trace_precision)
+        self.label_p = QLabel()
+        self.label_p.setToolTip(
+            """Trace precision directly affects the size of the dx step used 
+to trace the solution curve. Higher precision means
+exponentially smaller dx and exponentially higher calculation 
+time. Increase precision only if there is a singularity that
+is not being detected."""
+        )
+        self.label_p.setText(f"  &Trace precision: {self.settings.trace_precision}   ")
+        self.label_p.setBuddy(self.slider_p)
+        form = QVBoxLayout()
+        form.addWidget(self.label_p)
+        form.addWidget(self.slider_p)
+        advanced_layout.addRow(form)
+
+        # create the 'trace y margin' input line
+        self.y_margin_input = QLineEdit()
+        self.y_margin_input.setText(str(self.settings.y_margin))
+        self.y_margin_input.textChanged.connect(self.update_y_margin)
+        label = QLabel("  Y offscreen margin:")
+        label.setToolTip(
+            """When the solution curve goes offscreen when tracing, it is cut off
+if it gets too far to save calculation time. This setting determines
+how many screen heights the curve can go offscreen before it is cut off.
+You can make this 0 if you know that the curve doesn't go offscreen.
+Or if the curve goes really far offscreen, but you know that it will
+come back, you can set this to a higher value."""
+        )
+        advanced_layout.addRow(label, self.y_margin_input)
+
+        if not self.settings.has_singularity_for(function):
+            self.settings.auto_singularity_detection = True
+
+        # create 'automatic singularity detection' checkbox
+        self.automatic_singularity_detection = QCheckBox("Automatic singularity detection")
+        self.automatic_singularity_detection.setToolTip(
+            """If enabled the program will try to detect singularities automatically.
+In some cases, it might be very difficult to detect singularities correctly, 
+especially if you zoom further out. If you specify the equation for singularities 
+manually, the program will use that instead of automatic detection.
+For example: y'=x/y has the singularity equation 0=y."""
+        )
+        self.automatic_singularity_detection.setChecked(
+            self.settings.auto_singularity_detection
+        )
+        self.automatic_singularity_detection.stateChanged.connect(
+            self.changed_automatic_singularity_detection
+        )
+        advanced_layout.addRow(self.automatic_singularity_detection)
+
+        # create 'singularity slope' slider
+        self.slider_s = QSlider(Qt.Orientation.Horizontal)
+        self.slider_s.setEnabled(self.settings.auto_singularity_detection)
+        self.slider_s.setMinimum(MIN_SINGULARITY_MIN_SLOPE)
+        self.slider_s.setMaximum(MAX_SINGULARITY_MIN_SLOPE)
+        self.slider_s.setValue(self.settings.singularity_min_slope)
+        self.slider_s.setMinimumWidth(150)
+        self.slider_s.setTickInterval(
+            (MAX_SINGULARITY_MIN_SLOPE - MIN_SINGULARITY_MIN_SLOPE) // 15
+        )
+        self.slider_s.setSingleStep(5)
+        self.slider_s.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.slider_s.valueChanged.connect(self.changed_singularity_min_slope)
+        self.label_s = QLabel()
+        self.label_s.setToolTip(
+            """This settings determines the minimum slope the function must have 
+in order for the singularity detection to kick in."""
+        )
+        self.label_s.setText(f"  &Singularity slope: {self.settings.singularity_min_slope}   ")
+        self.label_s.setBuddy(self.slider_s)
+        form = QVBoxLayout()
+        form.addWidget(self.label_s)
+        form.addWidget(self.slider_s)
+        advanced_layout.addRow(form)
+
+        # create 'enter singular equation' line input
+        self.equation_input = QLineEdit()
+        self.equation_input.setEnabled(not self.settings.auto_singularity_detection)
+        self.equation_input.setText(self.settings.singularity_equations.get(function, ""))
+        self.equation_input.setPlaceholderText("Enter singularity equation")
+        form = QHBoxLayout()
+        form.addWidget(QLabel("  0 ="))
+        form.addWidget(self.equation_input)
+        advanced_layout.addRow(form)
+
+        # Show/Hide button for advanced settings
+        self.toggle_button = QPushButton("Show Advanced Settings")
+        self.toggle_button.clicked.connect(self.toggle_advanced_settings)
+
+        layout.addWidget(self.toggle_button)
+
+        # OK and Cancel buttons
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        layout.addWidget(self.button_box)
+
+        self.setLayout(layout)
+
+    def toggle_advanced_settings(self):
+        if self.advanced_group_box.isVisible():
+            self.advanced_group_box.setVisible(False)
+            self.toggle_button.setText("Show Advanced Settings")
+        else:
+            self.advanced_group_box.setVisible(True)
+            self.toggle_button.setText("Hide Advanced Settings")
+        self.adjustSize()
+
+    def accept(self):
+        """accept the dialog, but raise an error if the entered singularity eq. is invalid"""
+        previous = self.settings.singularity_equations.get(self.function, None)
+        eq_str = self.equation_input.text()
+        if not self.settings.auto_singularity_detection and eq_str != previous:
+            try:
+                new_eq = create_function_from_string(eq_str)
+                # try to evaluate the equation at a few random points
+                for _ in range(20):
+                    try:
+                        x = random.uniform(self.xlim[0], self.xlim[1])
+                        y = random.uniform(self.ylim[0], self.ylim[1])
+                        new_eq(x, y)
+                    except ZeroDivisionError:
+                        pass
+                    except ValueError:
+                        pass
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Invalid singularity equation: {e}")
+                return
+
+        # accept the dialog
+        self.settings.singularity_equations[self.function] = eq_str
+        super().accept()
+
+    def changed_automatic_singularity_detection(self, checked):
+        self.slider_s.setEnabled(checked)
+        self.equation_input.setEnabled(not checked)
+        self.settings.auto_singularity_detection = checked
+
+    def changed_trace_lines_width(self):
+        """Updates the trace lines width according to the slider."""
+        width = self.slider_w.value()
+        self.label_w.setText(f"  &Trace lines width: {width}")
+        self.settings.line_width = width
+
+    def changed_trace_precision(self):
+        """Updates the trace precision according to the slider."""
+        precision = self.slider_p.value()
+        self.label_p.setText(f"  &Trace precision: {precision}")
+        self.settings.trace_precision = precision
+
+    def changed_singularity_min_slope(self):
+        """Updates the min_slope according to the slider."""
+        min_slope = self.slider_s.value()
+        self.label_s.setText(f"  &Singularity slope: {min_slope}")
+        self.settings.singularity_min_slope = min_slope
+
+    def update_y_margin(self):
+        """Updates y margin according to the y_margin input line."""
+        y_margin = self.y_margin_input.text()
+        try:
+            y_margin = float(y_margin)
+            if y_margin < 0:
+                y_margin = 0
+                self.y_margin_input.setText(str(y_margin))
+            if y_margin > MAX_TRACE_Y_MARGIN:
+                y_margin = MAX_TRACE_Y_MARGIN
+                self.y_margin_input.setText(str(y_margin))
+        except ValueError:  # don't change anything if the input is not valid
+            return
+        self.settings.y_margin = y_margin
+
+    def open_color_dialog(self):
+        """Opens a QColorDialog to select a color."""
+        color_dialog = QColorDialog(self.selected_color, self)
+        color_dialog.setOption(QColorDialog.ColorDialogOption.DontUseNativeDialog, True)
+
+        # Applying a custom stylesheet to QColorDialog
+        color_dialog.setStyleSheet(
+            """
+            QSpinBox {
+                width : 45px;
+                padding-left: -3px;
+                padding-right: 15px;
+            }
+            """
+        )
+
+        if color_dialog.exec() == QColorDialog.DialogCode.Accepted:
+            self.settings.line_color = color_dialog.selectedColor().name()
+            self.update_color_box()  # Update the color box with the new color
+
+    def update_color_box(self):
+        """Updates the background color of the color box (QLabel)."""
+        self.color_box.setStyleSheet(
+            f"background-color: {self.settings.line_color}; border: 1px solid #626262; border-radius: 5px;"
+        )
+
+
 class MyApp(QWidget):
-    """Creates the GUI using the PyQt5 library."""
+    """Creates the GUI using the PyQt6 library."""
 
     equal_axes = True  # True if the 'Equal axes' checkbox is checked
 
@@ -304,50 +578,18 @@ class MyApp(QWidget):
         # add some spacing
         self.sidebarLayout.addItem(spacer)
 
-        # create the 'trace line width' slider
-        self.slider_w = QSlider(Qt.Orientation.Horizontal)
-        self.slider_w.setMinimum(1)
-        self.slider_w.setMaximum(10)
-        self.slider_w.setValue(DEFAULT_TRACE_LINES_WIDTH)
-        self.slider_w.setMinimumWidth(150)
-        self.slider_w.setTickInterval(1)
-        self.slider_w.setSingleStep(1)
-        self.slider_w.setTickPosition(QSlider.TickPosition.TicksBelow)
-        self.slider_w.valueChanged.connect(self.changed_trace_lines_width)
-        self.label_w = QLabel()
-        self.label_w.setText(f"  &Trace line width: {DEFAULT_TRACE_LINES_WIDTH}   ")
-        self.label_w.setBuddy(
-            self.slider_w
-        )  # changes focus to the slider if 'Alt+t' is pressed
-        form = QVBoxLayout()
-        form.addWidget(self.label_w)
-        form.addWidget(self.slider_w)
-        self.sidebarLayout.addLayout(form)
-
         layout = QHBoxLayout()
-        # create the 'Auto trace dx' checkbox
-        self.autoTrace = QCheckBox("Auto trace dx")
-        self.autoTrace.setChecked(True)
-        self.autoTrace.stateChanged.connect(self.checked_autoTrace)
-        self.sidebarLayout.addWidget(self.autoTrace)
-        layout.addWidget(self.autoTrace)
+        # create the 'trace settings' button
+        self.trace_settings_button = QPushButton("&Trace settings")
+        self.trace_settings_button.clicked.connect(self.show_trace_settings_dialog)
+        self.trace_settings_button.setShortcut("Ctrl+T")
+        layout.addWidget(self.trace_settings_button)
         # add button for specifying x and y coordinates of the start point
-        self.trace_point_button = QPushButton("Trace point")
+        self.trace_point_button = QPushButton("Trace &point")
         self.trace_point_button.clicked.connect(self.clicked_trace_point_button)
-        self.trace_point_button.setShortcut("Ctrl+T")
+        self.trace_point_button.setShortcut("Ctrl+P")
         layout.addWidget(self.trace_point_button)
         self.sidebarLayout.addLayout(layout)
-
-        # create the 'trace dx' input line
-        self.trace_dx_input = QLineEdit()
-        self.trace_dx_input.setEnabled(False)
-        self.trace_dx_input.setText(str(self.canvas.dfb.get_auto_dx()))
-        self.trace_dx_input.textChanged.connect(self.update_trace_dx)
-        form = QFormLayout()
-        form.addRow(
-            "  dx:", self.trace_dx_input
-        )  # spaces at the beginning are for additional padding
-        self.sidebarLayout.addLayout(form)
 
         layout = QHBoxLayout()
         # create the 'Grid' checkbox
@@ -459,6 +701,11 @@ class MyApp(QWidget):
         if not success:
             self.canvas.dfb.function = previous
             self.canvas.redraw()
+        else:
+            if self.canvas.dfb.function_string != func_str:
+                self.canvas.dfb.function_string = func_str
+                if func_str not in self.canvas.dfb.trace_settings.singularity_equations:
+                    self.canvas.dfb.trace_settings.auto_singularity_detection = True
 
     def checked_equalAxes(self, checked):
         """Turns equal_axes on and off."""
@@ -497,37 +744,11 @@ class MyApp(QWidget):
         self.label_cp.setText(f"  &Color precision: {color_precision}")
         self.canvas.set_color_precision(color_precision)
 
-    def checked_autoTrace(self, checked):
-        """Turns automatic trace dx on and off"""
-        self.canvas.dfb.auto_trace_dx = not self.canvas.dfb.auto_trace_dx
-        self.trace_dx_input.setEnabled(not checked)
-        self.update_displayed_trace_dx()
-
     def checked_grid(self, checked):
         self.canvas.set_grid_enabled(checked)
 
     def checked_axes(self, checked):
         self.canvas.set_axes_enabled(checked)
-
-    def update_trace_dx(self):
-        """Updates trace dx according to the dx input line"""
-        dx = self.trace_dx_input.text()
-        try:
-            dx = float(dx)
-            if dx <= 0:
-                return
-            if dx < MIN_TRACE_DX:
-                dx = MIN_TRACE_DX
-                self.trace_dx_input.setText(str(dx))
-        except ValueError:  # don't change anything if the input is not valid
-            return
-        dx = max(dx, MIN_TRACE_DX)
-        self.canvas.set_trace_lines_dx(dx)
-
-    def update_displayed_trace_dx(self):
-        """Sets trace dx to the one given"""
-        dx = self.canvas.dfb.get_auto_dx()
-        self.trace_dx_input.setText(f"{dx:.10f}")
 
     def clicked_trace_point_button(self):
         """Opens a dialog to input the x and y coordinates of the start point."""
@@ -558,6 +779,19 @@ class MyApp(QWidget):
                 self.canvas.dfb.trace_from_point(x, y)
             except Exception:
                 QMessageBox.critical(self, "Error", f"Invalid coordinates.")
+
+    def show_trace_settings_dialog(self):
+        """Opens a dialog to set the trace settings."""
+        new_settings = self.canvas.dfb.trace_settings.copy()
+        dialog = TraceSettingsDialog(
+            self,
+            new_settings,
+            self.canvas.dfb.function_string,
+            self.canvas.get_xlim(),
+            self.canvas.get_ylim(),
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.canvas.dfb.trace_settings = new_settings
 
     def update_xmin(self):
         """Updates xmin according to the xmin input line."""
@@ -651,12 +885,6 @@ class MyApp(QWidget):
         self.canvas.set_arrow_width(arrow_width)
         self.canvas.redraw()
 
-    def changed_trace_lines_width(self):
-        """Updates the trace lines width according to the slider."""
-        width = self.slider_w.value()
-        self.label_w.setText(f"  &Trace lines width: {width}")
-        self.canvas.set_trace_lines_width(width)
-
     def changed_mouse_line_width(self):
         """Updates the mouse line width according to the slider."""
         width = self.slider_mw.value()
@@ -692,6 +920,17 @@ def main():
         icon = os.path.join(sys._MEIPASS, "src/icon.ico")
     else:
         icon = "src/icon.ico"
+
+    app.setStyleSheet(
+        """
+    QToolTip {
+        background-color: #f0f0f0;
+        color: black;
+        border: 2px solid black;
+        padding: 4px;
+    }
+"""
+    )
 
     main_win.setWindowIcon(QIcon(icon))
     main_win.show()
