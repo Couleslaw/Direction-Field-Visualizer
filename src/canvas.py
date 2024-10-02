@@ -64,8 +64,8 @@ class Canvas(FigureCanvas):
         self.dfb.arrow_width = arrow_width
         self.redraw()
 
-    def set_color_intensity(self, color_intensity):
-        self.dfb.color_intensity = color_intensity
+    def set_color_contrast(self, color_contrast):
+        self.dfb.color_contrast = color_contrast
         self.redraw()
 
     def set_color_precision(self, color_precision):

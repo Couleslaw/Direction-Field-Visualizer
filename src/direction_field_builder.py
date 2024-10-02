@@ -27,7 +27,7 @@ class DirectionFieldBuilder:
         self.show_grid = False
         self.show_axes = True
         self.indicate_colors = True
-        self.color_intensity = DEFAULT_COLOR_INTENSITY
+        self.color_contrast = DEFAULT_COLOR_CONTRAST
         self.color_map_name = DEFAULT_COLOR_MAP
         self.color_precision = DEFAULT_COLOR_PRECISION
 
@@ -247,14 +247,14 @@ class DirectionFieldBuilder:
 
             return Normalize(clip=True, vmin=0, vmax=max_val)(x)
 
-        # since exponents are exponential, we can not simply linear map the COLOR_INTENSITY to EXPONENT
+        # since exponents are exponential, we can not simply linear map the COLOR_CONTRAST to EXPONENT
         # use an exponential function to map the values
         base = 1.4
         a = (MAX_COLOR_EXP - MIN_COLOR_EXP) / (
-            base**MAX_COLOR_INTENSITY - base**MIN_COLOR_INTENSITY
+            base**MAX_COLOR_CONTRAST - base**MIN_COLOR_CONTRAST
         )
-        b = MIN_COLOR_EXP - a * base**MIN_COLOR_INTENSITY
-        exponent = a * base**self.color_intensity + b
+        b = MIN_COLOR_EXP - a * base**MIN_COLOR_CONTRAST
+        exponent = a * base**self.color_contrast + b
         return cm.get_cmap(self.color_map_name)(norm(np.abs(curvatures)) ** exponent)
 
     def draw_field(self, just_entered_new_function=False, keep_cache=False):
@@ -390,7 +390,7 @@ class DirectionFieldBuilder:
         xlim = self.plot.axes.get_xlim()
         ylim = self.plot.axes.get_ylim()
         diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
-        vector_len = diagonal / 100 * self.mouse_line_length * 1.7
+        vector_len = diagonal / 40 * self.mouse_line_length
 
         # remove the old arrow
         self.remove_mouse_line_from_plot()

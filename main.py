@@ -33,8 +33,6 @@ from src.numerical_methods import (
 )
 from src.default_constants import *
 
-ROUND_INPUT_LINES = 7
-
 
 class CoordinateDialog(QDialog):
     def __init__(self, parent=None):
@@ -404,9 +402,27 @@ class MyApp(QWidget):
         graphLayout.addWidget(self.save_button)
         self.sidebarLayout.addLayout(graphLayout)
 
+        traceLayout = QHBoxLayout()
+        # create the 'trace settings' button
+        self.trace_settings_button = QPushButton("&Trace settings")
+        self.trace_settings_button.clicked.connect(self.show_trace_settings_dialog)
+        self.trace_settings_button.setShortcut("Ctrl+T")
+        traceLayout.addWidget(self.trace_settings_button)
+        # add button for specifying x and y coordinates of the start point
+        self.trace_point_button = QPushButton("Trace &point")
+        self.trace_point_button.clicked.connect(self.clicked_trace_point_button)
+        self.trace_point_button.setShortcut("Ctrl+P")
+        traceLayout.addWidget(self.trace_point_button)
+        self.sidebarLayout.addLayout(traceLayout)
+
         # add space
         spacer = QSpacerItem(0, 30, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
         self.sidebarLayout.addItem(spacer)
+
+        # arrow settings
+        arrow_group = QGroupBox("Direction Field Settings")
+        arrow_layout = QVBoxLayout()
+        arrow_group.setLayout(arrow_layout)
 
         # create the 'num arrows' input line and buttons
         self.num_arrows_input = QLineEdit()
@@ -424,12 +440,12 @@ class MyApp(QWidget):
         self.minus_arrows.clicked.connect(self.remove_some_arrows)
         self.minus_arrows.setShortcut("Alt+left")
 
-        arrowLayout = QHBoxLayout()
-        arrowLayout.addWidget(self.minus_arrows)
-        arrowLayout.addWidget(self.plus_arrows)
+        arrow_buttons_layout = QHBoxLayout()
+        arrow_buttons_layout.addWidget(self.minus_arrows)
+        arrow_buttons_layout.addWidget(self.plus_arrows)
 
-        self.sidebarLayout.addLayout(form)
-        self.sidebarLayout.addLayout(arrowLayout)
+        arrow_layout.addLayout(form)
+        arrow_layout.addLayout(arrow_buttons_layout)
 
         # create the 'arrow length' slider
         self.slider_a = QSlider(Qt.Orientation.Horizontal)
@@ -449,7 +465,7 @@ class MyApp(QWidget):
         form = QVBoxLayout()
         form.addWidget(self.label_a)
         form.addWidget(self.slider_a)
-        self.sidebarLayout.addLayout(form)
+        arrow_layout.addLayout(form)
 
         # create the 'arrow width' slider
         self.slider_aw = QSlider(Qt.Orientation.Horizontal)
@@ -469,36 +485,43 @@ class MyApp(QWidget):
         form = QVBoxLayout()
         form.addWidget(self.label_aw)
         form.addWidget(self.slider_aw)
-        self.sidebarLayout.addLayout(form)
+        arrow_layout.addLayout(form)
+
+        self.sidebarLayout.addWidget(arrow_group)
 
         # add some spacing
         self.sidebarLayout.addItem(spacer)
+
+        # color settings group
+        color_group = QGroupBox("Color Settings")
+        color_layout = QVBoxLayout()
+        color_group.setLayout(color_layout)
 
         # create the 'Color by curvature' checkbox
         self.colors = QCheckBox("Color by curvature")
         self.colors.setChecked(True)
         self.colors.stateChanged.connect(self.checked_color)
-        self.sidebarLayout.addWidget(self.colors)
+        color_layout.addWidget(self.colors)
 
-        # create the 'color intensity' slider
+        # create the 'color contrast' slider
         self.slider_c = QSlider(Qt.Orientation.Horizontal)
-        self.slider_c.setMinimum(MIN_COLOR_INTENSITY)
-        self.slider_c.setMaximum(MAX_COLOR_INTENSITY)
-        self.slider_c.setValue(DEFAULT_COLOR_INTENSITY)
+        self.slider_c.setMinimum(MIN_COLOR_CONTRAST)
+        self.slider_c.setMaximum(MAX_COLOR_CONTRAST)
+        self.slider_c.setValue(DEFAULT_COLOR_CONTRAST)
         self.slider_c.setMinimumWidth(150)
         self.slider_c.setTickInterval(1)
         self.slider_c.setSingleStep(1)
         self.slider_c.setTickPosition(QSlider.TickPosition.TicksBelow)
-        self.slider_c.valueChanged.connect(self.changed_color_intensity)
+        self.slider_c.valueChanged.connect(self.changed_color_contrast)
         self.label_c = QLabel()
-        self.label_c.setText(f"  &Color contrast: {DEFAULT_COLOR_INTENSITY}   ")
+        self.label_c.setText(f"  &Color contrast: {DEFAULT_COLOR_CONTRAST}   ")
         self.label_c.setBuddy(
             self.slider_c
         )  # changes focus to the slider if 'Alt+c' is pressed
         form = QVBoxLayout()
         form.addWidget(self.label_c)
         form.addWidget(self.slider_c)
-        self.sidebarLayout.addLayout(form)
+        color_layout.addLayout(form)
 
         # create the 'color precision' slider
         self.slider_cp = QSlider(Qt.Orientation.Horizontal)
@@ -516,7 +539,7 @@ class MyApp(QWidget):
         form = QVBoxLayout()
         form.addWidget(self.label_cp)
         form.addWidget(self.slider_cp)
-        self.sidebarLayout.addLayout(form)
+        color_layout.addLayout(form)
 
         # create color map dropdown list
         self.color_map = QComboBox()
@@ -524,22 +547,29 @@ class MyApp(QWidget):
             self.color_map.addItem(color_map)
         self.color_map.setCurrentText(DEFAULT_COLOR_MAP)
         self.color_map.currentTextChanged.connect(self.canvas.set_color_map)
-        self.sidebarLayout.addWidget(self.color_map)
+        color_layout.addWidget(self.color_map)
+
+        self.sidebarLayout.addWidget(color_group)
 
         # add some spacing
         self.sidebarLayout.addItem(spacer)
+
+        # mouse line settings group
+        mouse_line_group = QGroupBox("Mouse Line Settings")
+        mouse_line_layout = QVBoxLayout()
+        mouse_line_group.setLayout(mouse_line_layout)
 
         # create the 'Mouse line' checkbox
         self.mouseLine = QCheckBox("Mouse line")
         self.mouseLine.stateChanged.connect(self.checked_mouseLine)
         self.mouseLine.setChecked(False)
         self.mouseLine.setShortcut("Ctrl+&M")
-        self.sidebarLayout.addWidget(self.mouseLine)
+        mouse_line_layout.addWidget(self.mouseLine)
 
         # create the 'Mouse line length' slider
         self.slider_ml = QSlider(Qt.Orientation.Horizontal)
-        self.slider_ml.setMinimum(1)
-        self.slider_ml.setMaximum(10)
+        self.slider_ml.setMinimum(MIN_MOUSE_LINE_LENGTH)
+        self.slider_ml.setMaximum(MAX_MOUSE_LINE_LENGTH)
         self.slider_ml.setValue(DEFAULT_MOUSE_LINE_LENGTH)
         self.slider_ml.setMinimumWidth(150)
         self.slider_ml.setTickInterval(1)
@@ -554,12 +584,12 @@ class MyApp(QWidget):
         form = QVBoxLayout()
         form.addWidget(self.label_ml)
         form.addWidget(self.slider_ml)
-        self.sidebarLayout.addLayout(form)
+        mouse_line_layout.addLayout(form)
 
         # create the 'Mouse line width' slider
         self.slider_mw = QSlider(Qt.Orientation.Horizontal)
-        self.slider_mw.setMinimum(1)
-        self.slider_mw.setMaximum(10)
+        self.slider_mw.setMinimum(MIN_MOUSE_LINE_WIDTH)
+        self.slider_mw.setMaximum(MAX_MOUSE_LINE_WIDTH)
         self.slider_mw.setValue(DEFAULT_MOUSE_LINE_WIDTH)
         self.slider_mw.setMinimumWidth(150)
         self.slider_mw.setTickInterval(1)
@@ -574,36 +604,28 @@ class MyApp(QWidget):
         form = QVBoxLayout()
         form.addWidget(self.label_mw)
         form.addWidget(self.slider_mw)
-        self.sidebarLayout.addLayout(form)
-        # add some spacing
-        self.sidebarLayout.addItem(spacer)
+        mouse_line_layout.addLayout(form)
 
-        layout = QHBoxLayout()
-        # create the 'trace settings' button
-        self.trace_settings_button = QPushButton("&Trace settings")
-        self.trace_settings_button.clicked.connect(self.show_trace_settings_dialog)
-        self.trace_settings_button.setShortcut("Ctrl+T")
-        layout.addWidget(self.trace_settings_button)
-        # add button for specifying x and y coordinates of the start point
-        self.trace_point_button = QPushButton("Trace &point")
-        self.trace_point_button.clicked.connect(self.clicked_trace_point_button)
-        self.trace_point_button.setShortcut("Ctrl+P")
-        layout.addWidget(self.trace_point_button)
-        self.sidebarLayout.addLayout(layout)
+        self.sidebarLayout.addWidget(mouse_line_group)
 
-        layout = QHBoxLayout()
-        # create the 'Grid' checkbox
-        self.gridCheckBox = QCheckBox("Grid")
-        self.gridCheckBox.setChecked(False)
-        self.gridCheckBox.stateChanged.connect(self.checked_grid)
-        layout.addWidget(self.gridCheckBox)
+        # add spacing that will push the rest to the bottom
+        self.sidebarLayout.addItem(
+            QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        )
 
-        # create the 'Axes' checkbox
-        self.axesCheckBox = QCheckBox("Axes")
-        self.axesCheckBox.setChecked(True)
-        self.axesCheckBox.stateChanged.connect(self.checked_axes)
-        layout.addWidget(self.axesCheckBox)
-        self.sidebarLayout.addLayout(layout)
+        # layout = QHBoxLayout()
+        # # create the 'Grid' checkbox
+        # self.gridCheckBox = QCheckBox("Grid")
+        # self.gridCheckBox.setChecked(False)
+        # self.gridCheckBox.stateChanged.connect(self.checked_grid)
+        # layout.addWidget(self.gridCheckBox)
+
+        # # create the 'Axes' checkbox
+        # self.axesCheckBox = QCheckBox("Axes")
+        # self.axesCheckBox.setChecked(True)
+        # self.axesCheckBox.stateChanged.connect(self.checked_axes)
+        # layout.addWidget(self.axesCheckBox)
+        # self.sidebarLayout.addLayout(layout)
 
         # create the 'Equal axes' checkbox
         self.equalAxes = QCheckBox("Equal axes")
@@ -612,41 +634,46 @@ class MyApp(QWidget):
 
         # create the 'x min' input line
         self.xmin_input = QLineEdit()
+        self.xmin_input.setMinimumWidth(10)
+
         self.xmin_input.setText(str(DEFAULT_XMIN))
         self.xmin_input.textChanged.connect(self.update_xmin)
         form = QFormLayout()
         form.addRow(
-            "  x min:", self.xmin_input
+            "x min:", self.xmin_input
         )  # spaces at the beginning are for additional padding
         self.bot_barLayout.addLayout(form)
 
         # create the 'x max' input line
         self.xmax_input = QLineEdit()
+        self.xmax_input.setMinimumWidth(10)
         self.xmax_input.setText(str(DEFAULT_XMAX))
         self.xmax_input.textChanged.connect(self.update_xmax)
         form = QFormLayout()
         form.addRow(
-            "  x max:", self.xmax_input
+            "x max:", self.xmax_input
         )  # spaces at the beginning are for additional padding
         self.bot_barLayout.addLayout(form)
 
         # create the 'y min' input line
         self.ymin_input = QLineEdit()
+        self.ymin_input.setMinimumWidth(10)
         self.ymin_input.setText(str(DEFAULT_YMIN))
         self.ymin_input.textChanged.connect(self.update_ymin)
         form = QFormLayout()
         form.addRow(
-            "  y min:", self.ymin_input
+            "y min:", self.ymin_input
         )  # spaces at the beginning are for additional padding
         self.bot_barLayout.addLayout(form)
 
         # create the 'y max' input line
         self.ymax_input = QLineEdit()
+        self.ymax_input.setMinimumWidth(10)
         self.ymax_input.setText(str(DEFAULT_YMAX))
         self.ymax_input.textChanged.connect(self.update_ymax)
         form = QFormLayout()
         form.addRow(
-            "  y max:", self.ymax_input
+            "y max:", self.ymax_input
         )  # spaces at the beginning are for additional padding
         self.bot_barLayout.addLayout(form)
 
@@ -663,6 +690,18 @@ class MyApp(QWidget):
         self.center_y_button.clicked.connect(self.canvas.centralize_plot_y)
         self.center_y_button.setShortcut("Alt+Y")
         self.bot_barLayout.addWidget(self.center_y_button)
+
+        # create the 'Grid' checkbox
+        self.gridCheckBox = QCheckBox("Grid")
+        self.gridCheckBox.setChecked(False)
+        self.gridCheckBox.stateChanged.connect(self.checked_grid)
+        self.bot_barLayout.addWidget(self.gridCheckBox)
+
+        # create the 'Axes' checkbox
+        self.axesCheckBox = QCheckBox("Axes")
+        self.axesCheckBox.setChecked(True)
+        self.axesCheckBox.stateChanged.connect(self.checked_axes)
+        self.bot_barLayout.addWidget(self.axesCheckBox)
 
     def show_save_file_dialog(self):
         """Opens a dialog to save the current figure as a png or svg file."""
@@ -733,11 +772,11 @@ class MyApp(QWidget):
         """Turns color on and off."""
         self.canvas.set_is_colored(checked)
 
-    def changed_color_intensity(self):
-        """Updates the color intensity according to the slider."""
-        color_intensity = self.slider_c.value()
-        self.label_c.setText(f"  &Color contrast: {color_intensity}")
-        self.canvas.set_color_intensity(color_intensity)
+    def changed_color_contrast(self):
+        """Updates the color contrast according to the slider."""
+        color_contrast = self.slider_c.value()
+        self.label_c.setText(f"  &Color contrast: {color_contrast}")
+        self.canvas.set_color_contrast(color_contrast)
 
     def updated_color_precision(self):
         """Updates the color precision according to the slider."""
