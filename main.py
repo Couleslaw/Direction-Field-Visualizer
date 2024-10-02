@@ -1,6 +1,6 @@
 import sys
 import os
-from numpy import random
+import numpy as np
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon, QColor
 from PyQt6.QtWidgets import (
@@ -27,10 +27,9 @@ from PyQt6.QtWidgets import (
 )
 
 from src.canvas import Canvas
-from src.direction_field_builder import (
+from src.numerical_methods import (
     TraceSettings,
     create_function_from_string,
-    eval_expression,
 )
 from src.default_constants import *
 
@@ -92,8 +91,8 @@ class TraceSettingsDialog(QDialog):
 
         # create the 'trace line width' slider
         self.slider_w = QSlider(Qt.Orientation.Horizontal)
-        self.slider_w.setMinimum(1)
-        self.slider_w.setMaximum(10)
+        self.slider_w.setMinimum(MIN_TRACE_LINES_WIDTH)
+        self.slider_w.setMaximum(MAX_TRACE_LINES_WIDTH)
         self.slider_w.setValue(self.settings.line_width)
         self.slider_w.setMinimumWidth(150)
         self.slider_w.setTickInterval(1)
@@ -129,7 +128,7 @@ class TraceSettingsDialog(QDialog):
         self.advanced_group_box = QGroupBox("Advanced Settings")
         advanced_layout = QFormLayout()
         self.advanced_group_box.setLayout(advanced_layout)
-        self.advanced_group_box.setVisible(False)  # Hidden by default
+        self.advanced_group_box.setVisible(self.settings.show_advanced_settings)
         layout.addWidget(self.advanced_group_box)
 
         # create trace precision slider
@@ -250,11 +249,12 @@ in order for the singularity detection to kick in."""
         else:
             self.advanced_group_box.setVisible(True)
             self.toggle_button.setText("Hide Advanced Settings")
+        self.settings.show_advanced_settings = not self.settings.show_advanced_settings
         self.adjustSize()
 
     def accept(self):
         """accept the dialog, but raise an error if the entered singularity eq. is invalid"""
-        previous = self.settings.singularity_equations.get(self.function, None)
+        previous = self.settings.singularity_equations.get(self.function, 0)
         eq_str = self.equation_input.text()
         if not self.settings.auto_singularity_detection and eq_str != previous:
             try:
@@ -262,15 +262,15 @@ in order for the singularity detection to kick in."""
                 # try to evaluate the equation at a few random points
                 for _ in range(20):
                     try:
-                        x = random.uniform(self.xlim[0], self.xlim[1])
-                        y = random.uniform(self.ylim[0], self.ylim[1])
+                        x = np.random.uniform(self.xlim[0], self.xlim[1])
+                        y = np.random.uniform(self.ylim[0], self.ylim[1])
                         new_eq(x, y)
                     except ZeroDivisionError:
                         pass
                     except ValueError:
                         pass
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Invalid singularity equation: {e}")
+                QMessageBox.critical(self, "Error", f"Invalid singularity equation.")
                 return
 
         # accept the dialog
@@ -433,8 +433,8 @@ class MyApp(QWidget):
 
         # create the 'arrow length' slider
         self.slider_a = QSlider(Qt.Orientation.Horizontal)
-        self.slider_a.setMinimum(1)
-        self.slider_a.setMaximum(20)
+        self.slider_a.setMinimum(MIN_ARROW_LENGTH)
+        self.slider_a.setMaximum(MAX_ARROW_LENGTH)
         self.slider_a.setValue(DEFAULT_ARROW_LENGTH)
         self.slider_a.setMinimumWidth(150)
         self.slider_a.setTickInterval(2)
@@ -453,8 +453,8 @@ class MyApp(QWidget):
 
         # create the 'arrow width' slider
         self.slider_aw = QSlider(Qt.Orientation.Horizontal)
-        self.slider_aw.setMinimum(1)
-        self.slider_aw.setMaximum(20)
+        self.slider_aw.setMinimum(MIN_ARROW_WIDTH)
+        self.slider_aw.setMaximum(MAX_ARROW_WIDTH)
         self.slider_aw.setValue(DEFAULT_ARROW_WIDTH)
         self.slider_aw.setMinimumWidth(150)
         self.slider_aw.setTickInterval(2)
@@ -483,7 +483,7 @@ class MyApp(QWidget):
         # create the 'color intensity' slider
         self.slider_c = QSlider(Qt.Orientation.Horizontal)
         self.slider_c.setMinimum(MIN_COLOR_INTENSITY)
-        self.slider_c.setMaximum(15)
+        self.slider_c.setMaximum(MAX_COLOR_INTENSITY)
         self.slider_c.setValue(DEFAULT_COLOR_INTENSITY)
         self.slider_c.setMinimumWidth(150)
         self.slider_c.setTickInterval(1)
@@ -502,8 +502,8 @@ class MyApp(QWidget):
 
         # create the 'color precision' slider
         self.slider_cp = QSlider(Qt.Orientation.Horizontal)
-        self.slider_cp.setMinimum(1)
-        self.slider_cp.setMaximum(10)
+        self.slider_cp.setMinimum(MIN_COLOR_PRECISION)
+        self.slider_cp.setMaximum(MAX_COLOR_PRECISION)
         self.slider_cp.setValue(DEFAULT_COLOR_PRECISION)
         self.slider_cp.setMinimumWidth(150)
         self.slider_cp.setTickInterval(1)
@@ -704,8 +704,9 @@ class MyApp(QWidget):
         else:
             if self.canvas.dfb.function_string != func_str:
                 self.canvas.dfb.function_string = func_str
-                if func_str not in self.canvas.dfb.trace_settings.singularity_equations:
-                    self.canvas.dfb.trace_settings.auto_singularity_detection = True
+                self.canvas.dfb.trace_settings.auto_singularity_detection = (
+                    not self.canvas.dfb.trace_settings.has_singularity_for(func_str)
+                )
 
     def checked_equalAxes(self, checked):
         """Turns equal_axes on and off."""
@@ -756,8 +757,8 @@ class MyApp(QWidget):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             x, y = dialog.get_coordinates()
             try:
-                x = float(eval_expression(x))
-                y = float(eval_expression(y))
+                x = float(eval(x))
+                y = float(eval(y))
                 xlim = self.canvas.get_xlim()
                 ylim = self.canvas.get_ylim()
                 if x < xlim[0] or x > xlim[1]:
@@ -856,8 +857,8 @@ class MyApp(QWidget):
             num_arrows = int(num_arrows)
         except ValueError:  # don't change anything if the input is not valid
             return
-        if num_arrows > MAX_NUM_ARROWS:
-            num_arrows = MAX_NUM_ARROWS
+        if num_arrows < MIN_NUM_ARROWS or num_arrows > MAX_NUM_ARROWS:
+            num_arrows = np.clip(num_arrows, MIN_NUM_ARROWS, MAX_NUM_ARROWS)
             self.num_arrows_input.setText(str(num_arrows))
         if num_arrows < 1:
             num_arrows = 1
