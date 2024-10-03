@@ -363,10 +363,10 @@ class DirectionFieldBuilder:
 
         # trace right and left from the center point
         tracer = SolutionTracer(self.trace_settings, self.function_string, xlim, ylim)
-
         right_line = tracer.trace(x, y, SolutionTracer.FORWARD)
         left_line = tracer.trace(x, y, SolutionTracer.BACKWARD)
 
+        # draw the solution curve
         line_width = self.trace_settings.get_line_width()
         line_color = self.trace_settings.line_color
         lc = LineCollection([left_line, right_line], color=line_color, linewidth=line_width)

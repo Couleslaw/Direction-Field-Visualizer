@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
     QDialogButtonBox,
     QColorDialog,
     QGroupBox,
+    QRadioButton,
 )
 
 from src.canvas import Canvas
@@ -73,20 +74,47 @@ class CoordinateDialog(QDialog):
 
 
 class TraceSettingsDialog(QDialog):
-    def __init__(self, parent, trace_settings: TraceSettings, function: str, xlim, ylim):
+    def __init__(self, parent, trace_settings: TraceSettings, slope_function: str, xlim, ylim):
         super().__init__(parent)
 
         self.setWindowTitle("Trace Settings")
+        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         self.setFixedWidth(250)
         self.settings = trace_settings
-        self.function = function
+        self.function = slope_function
         self.xlim = xlim
         self.ylim = ylim
         self.selected_color = QColor(self.settings.line_color)
 
         # Layout for dialog window
         layout = QVBoxLayout()
+        self.setLayout(layout)
 
+        # Basic-settings section
+        self.create_basic_settings(layout)
+
+        # Show/Hide button for advanced settings
+        self.toggle_button = QPushButton(
+            "Hide Advanced Settings"
+            if self.settings.show_advanced_settings
+            else "Show Advanced Settings"
+        )
+        self.toggle_button.clicked.connect(self.toggle_advanced_settings)
+        layout.addWidget(self.toggle_button)
+
+        # Advanced settings
+        self.create_advanced_settings(layout)
+
+        # OK and Cancel buttons
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        layout.addWidget(self.button_box)
+
+    def create_basic_settings(self, layout):
+        """Creates the trace-line-width slider and color-picker button."""
         # create the 'trace line width' slider
         self.slider_w = QSlider(Qt.Orientation.Horizontal)
         self.slider_w.setMinimum(MIN_TRACE_LINES_WIDTH)
@@ -122,14 +150,15 @@ class TraceSettingsDialog(QDialog):
 
         layout.addLayout(color_layout)
 
-        # Advanced section (collapsible)
-        self.advanced_group_box = QGroupBox("Advanced Settings")
-        advanced_layout = QFormLayout()
-        self.advanced_group_box.setLayout(advanced_layout)
-        self.advanced_group_box.setVisible(self.settings.show_advanced_settings)
-        layout.addWidget(self.advanced_group_box)
+    def create_advanced_settings(self, layout):
+        """Creates the advanced settings section.
+        - trace precision slider
+        - singularity detection radio buttons
+            - automatic: Y offscreen margin, singularity slope
+            - manual: singularity equation
+        """
 
-        # create trace precision slider
+        # trace precision slider
         self.slider_p = QSlider(Qt.Orientation.Horizontal)
         self.slider_p.setMinimum(MIN_TRACE_PRECISION)
         self.slider_p.setMaximum(MAX_TRACE_PRECISION)
@@ -139,59 +168,71 @@ class TraceSettingsDialog(QDialog):
         self.slider_p.setSingleStep(1)
         self.slider_p.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_p.valueChanged.connect(self.changed_trace_precision)
+        self.slider_p.setVisible(self.settings.show_advanced_settings)
         self.label_p = QLabel()
         self.label_p.setToolTip(
             """Trace precision directly affects the size of the dx step used 
-to trace the solution curve. Higher precision means
-exponentially smaller dx and exponentially higher calculation 
-time. Increase precision only if there is a singularity that
-is not being detected."""
+to trace the solution curve. Higher precision means exponentially
+smaller dx and exponentially higher calculation time. It is preferred
+to use equational singularity detection over increasing precision.
+Increase precision only if a singularity is not detected correctly.
+"""
         )
         self.label_p.setText(f"  &Trace precision: {self.settings.trace_precision}   ")
         self.label_p.setBuddy(self.slider_p)
-        form = QVBoxLayout()
-        form.addWidget(self.label_p)
-        form.addWidget(self.slider_p)
-        advanced_layout.addRow(form)
+        self.label_p.setVisible(self.settings.show_advanced_settings)
+        layout.addWidget(self.label_p)
+        layout.addWidget(self.slider_p)
 
-        # create the 'trace y margin' input line
-        self.y_margin_input = QLineEdit()
-        self.y_margin_input.setText(str(self.settings.y_margin))
-        self.y_margin_input.textChanged.connect(self.update_y_margin)
-        label = QLabel("  Y offscreen margin:")
-        label.setToolTip(
-            """When the solution curve goes offscreen when tracing, it is cut off
-if it gets too far to save calculation time. This setting determines
-how many screen heights the curve can go offscreen before it is cut off.
-You can make this 0 if you know that the curve doesn't go offscreen.
-Or if the curve goes really far offscreen, but you know that it will
-come back, you can set this to a higher value."""
-        )
-        advanced_layout.addRow(label, self.y_margin_input)
+        # Singularity detection settings
+        self.singularity_strategy_group_box = QGroupBox("Singularity Detection Strategy")
+        singularity_layout = QVBoxLayout()
+        self.singularity_strategy_group_box.setLayout(singularity_layout)
+        self.singularity_strategy_group_box.setVisible(self.settings.show_advanced_settings)
+        layout.addWidget(self.singularity_strategy_group_box)
 
-        if not self.settings.has_singularity_for(function):
-            self.settings.auto_singularity_detection = True
+        # Create singularity detection strategy radio buttons
+        self.radio_automatic_settings = QRadioButton("Automatic")
+        self.radio_manual_settings = QRadioButton("Equational")
 
-        # create 'automatic singularity detection' checkbox
-        self.automatic_singularity_detection = QCheckBox("Automatic singularity detection")
-        self.automatic_singularity_detection.setToolTip(
-            """If enabled the program will try to detect singularities automatically.
-In some cases, it might be very difficult to detect singularities correctly, 
-especially if you zoom further out. If you specify the equation for singularities 
-manually, the program will use that instead of automatic detection.
-For example: y'=x/y has the singularity equation 0=y."""
-        )
-        self.automatic_singularity_detection.setChecked(
-            self.settings.auto_singularity_detection
-        )
-        self.automatic_singularity_detection.stateChanged.connect(
-            self.changed_automatic_singularity_detection
-        )
-        advanced_layout.addRow(self.automatic_singularity_detection)
+        # Create settings layout
+        automatic_settings_layout = QVBoxLayout()
+        self.create_automatic_settings(automatic_settings_layout)
 
-        # create 'singularity slope' slider
+        manual_detection_layout = QVBoxLayout()
+        self.create_manual_detection_settings(manual_detection_layout)
+
+        # Wrap the settings layouts in QWidget objects for hiding/showing
+        self.automatic_settings_widget = QWidget()
+        self.automatic_settings_widget.setLayout(automatic_settings_layout)
+
+        self.manual_detection_widget = QWidget()
+        self.manual_detection_widget.setLayout(manual_detection_layout)
+
+        # Add radio buttons and settings to the main layout
+        radio_buttons_layout = QHBoxLayout()
+        radio_buttons_layout.addWidget(self.radio_automatic_settings)
+        radio_buttons_layout.addWidget(self.radio_manual_settings)
+
+        singularity_layout.addLayout(radio_buttons_layout)
+        singularity_layout.addWidget(self.automatic_settings_widget)
+        singularity_layout.addWidget(self.manual_detection_widget)
+
+        # Connect radio button signals to switch function
+        self.radio_automatic_settings.toggled.connect(self.switch_detection_settings)
+        self.radio_manual_settings.toggled.connect(self.switch_detection_settings)
+
+        # Set initial state
+        manual = self.settings.has_singularity_for(self.function)
+        self.radio_automatic_settings.setChecked(not manual)
+        self.radio_manual_settings.setChecked(manual)
+        self.switch_detection_settings()  # Ensure correct initial state
+
+    def create_automatic_settings(self, layout):
+        """Creates the automatic singularity detection settings."""
+
+        # 'singularity slope' slider
         self.slider_s = QSlider(Qt.Orientation.Horizontal)
-        self.slider_s.setEnabled(self.settings.auto_singularity_detection)
         self.slider_s.setMinimum(MIN_SINGULARITY_MIN_SLOPE)
         self.slider_s.setMaximum(MAX_SINGULARITY_MIN_SLOPE)
         self.slider_s.setValue(self.settings.singularity_min_slope)
@@ -209,76 +250,113 @@ in order for the singularity detection to kick in."""
         )
         self.label_s.setText(f"  &Singularity slope: {self.settings.singularity_min_slope}   ")
         self.label_s.setBuddy(self.slider_s)
-        form = QVBoxLayout()
-        form.addWidget(self.label_s)
-        form.addWidget(self.slider_s)
-        advanced_layout.addRow(form)
+        layout.addWidget(self.label_s)
+        layout.addWidget(self.slider_s)
 
-        # create 'enter singular equation' line input
+        # the 'trace y margin' input line
+        self.y_margin_input = QLineEdit()
+        self.y_margin_input.setText(str(self.settings.y_margin))
+        self.y_margin_input.textChanged.connect(self.update_y_margin)
+        label = QLabel("  Y offscreen margin:")
+        label.setToolTip(
+            """When the solution curve goes offscreen when tracing, it is cut off
+if it gets too far to save calculation time. This setting determines
+how many screen heights the curve can go offscreen before it is cut off.
+You can make this 0 if you know that the curve doesn't go offscreen.
+Or if the curve goes really far offscreen, but you know that it will
+come back, you can set this to a higher value."""
+        )
+        form = QFormLayout()
+        form.addRow(label, self.y_margin_input)
+        layout.addLayout(form)
+
+    def create_manual_detection_settings(self, layout):
+        """Creates the manual singularity detection settings."""
+
+        # 'enter singular equation' line input
         self.equation_input = QLineEdit()
-        self.equation_input.setEnabled(not self.settings.auto_singularity_detection)
-        self.equation_input.setText(self.settings.singularity_equations.get(function, ""))
+        self.equation_input.setText(self.settings.singularity_equations.get(self.function, ""))
         self.equation_input.setPlaceholderText("Enter singularity equation")
         form = QHBoxLayout()
         form.addWidget(QLabel("  0 ="))
         form.addWidget(self.equation_input)
-        advanced_layout.addRow(form)
-
-        # Show/Hide button for advanced settings
-        self.toggle_button = QPushButton("Show Advanced Settings")
-        self.toggle_button.clicked.connect(self.toggle_advanced_settings)
-
-        layout.addWidget(self.toggle_button)
-
-        # OK and Cancel buttons
-        self.button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
-        layout.addWidget(self.button_box)
-
-        self.setLayout(layout)
+        layout.addLayout(form)
 
     def toggle_advanced_settings(self):
-        if self.advanced_group_box.isVisible():
-            self.advanced_group_box.setVisible(False)
+        """Toggles the visibility of the advanced settings."""
+        if self.singularity_strategy_group_box.isVisible():
+            self.label_p.setVisible(False)
+            self.slider_p.setVisible(False)
+            self.singularity_strategy_group_box.setVisible(False)
             self.toggle_button.setText("Show Advanced Settings")
         else:
-            self.advanced_group_box.setVisible(True)
+            self.label_p.setVisible(True)
+            self.slider_p.setVisible(True)
+            self.singularity_strategy_group_box.setVisible(True)
             self.toggle_button.setText("Hide Advanced Settings")
         self.settings.show_advanced_settings = not self.settings.show_advanced_settings
         self.adjustSize()
 
+    def switch_detection_settings(self):
+        """Switches displayed detection settings based on the selected radio button"""
+        if self.radio_automatic_settings.isChecked():
+            self.manual_detection_widget.setVisible(False)
+            self.automatic_settings_widget.setVisible(True)
+        elif self.radio_manual_settings.isChecked():
+            self.automatic_settings_widget.setVisible(False)
+            self.manual_detection_widget.setVisible(True)
+        self.adjustSize()
+
     def accept(self):
-        """accept the dialog, but raise an error if the entered singularity eq. is invalid"""
-        previous = self.settings.singularity_equations.get(self.function, 0)
-        eq_str = self.equation_input.text()
-        if not self.settings.auto_singularity_detection and eq_str != previous:
-            try:
-                new_eq = create_function_from_string(eq_str)
-                # try to evaluate the equation at a few random points
-                for _ in range(20):
-                    try:
-                        x = np.random.uniform(self.xlim[0], self.xlim[1])
-                        y = np.random.uniform(self.ylim[0], self.ylim[1])
-                        new_eq(x, y)
-                    except ZeroDivisionError:
-                        pass
-                    except ValueError:
-                        pass
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Invalid singularity equation.")
-                return
+        """
+        Accepts the dialog, and updates singularity detection settings.
+        Shows an error message if the manual singularity equation is invalid and denys the accept.
+        """
 
-        # accept the dialog
-        self.settings.singularity_equations[self.function] = eq_str
+        # auto detection --> accept
+        if self.radio_automatic_settings.isChecked():
+            self.settings.auto_singularity_detection = True
+            super().accept()
+            return
+
+        # manual detection
+        equation = self.equation_input.text()
+
+        # if no equation --> switch to auto and accept
+        if equation == "":
+            self.settings.auto_singularity_detection = True
+            super().accept()
+            return
+
+        previous_equation = self.settings.singularity_equations.get(self.function, None)
+
+        # if same equation --> accept
+        if equation == previous_equation:
+            self.settings.auto_singularity_detection = False
+            super().accept()
+            return
+
+        # if different equation --> check if it is valid
+        try:
+            func = create_function_from_string(equation)
+            # try to evaluate the equation at a few random points
+            for _ in range(20):
+                try:
+                    x = np.random.uniform(self.xlim[0], self.xlim[1])
+                    y = np.random.uniform(self.ylim[0], self.ylim[1])
+                    func(x, y)
+                except ZeroDivisionError:  # can be a singularity
+                    pass
+                except ValueError:  # it might not be defined everywhere
+                    pass
+        except:
+            QMessageBox.critical(self, "Error", f"Invalid singularity equation.")
+            return
+
+        # the equation seems valid --> accept
+        self.settings.singularity_equations[self.function] = equation
+        self.settings.auto_singularity_detection = False
         super().accept()
-
-    def changed_automatic_singularity_detection(self, checked):
-        self.slider_s.setEnabled(checked)
-        self.equation_input.setEnabled(not checked)
-        self.settings.auto_singularity_detection = checked
 
     def changed_trace_lines_width(self):
         """Updates the trace lines width according to the slider."""
@@ -350,36 +428,129 @@ class MyApp(QWidget):
         self.setMinimumSize(900, 560)
         self.setWindowTitle("Direction Field Visualizer")
 
-        self.layout = QHBoxLayout()
-        self.setLayout(self.layout)
+        appLayout = QHBoxLayout()
+        self.setLayout(appLayout)
 
-        mainLayout = QVBoxLayout()
+        # main layout = graph + bar bellow it
+        graph_layout = QVBoxLayout()
+        appLayout.addLayout(graph_layout)
 
         # create the matplotlib graph
         self.canvas = Canvas(self)
         self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        mainLayout.addWidget(self.canvas)
+        graph_layout.addWidget(self.canvas)
 
-        # create the top bar layout
-        topbar = QWidget()
-        self.bot_barLayout = QHBoxLayout()
-        topbar.setLayout(self.bot_barLayout)
-        # topbar.setMaximumHeight(170)
-        mainLayout.addWidget(topbar)
+        # create the bot bar
+        bot_bar = QWidget()
+        bot_bar_layout = QHBoxLayout()
+        bot_bar.setLayout(bot_bar_layout)
+        self.create_bot_bar(bot_bar_layout)
+        graph_layout.addWidget(bot_bar)
 
-        self.layout.addLayout(mainLayout)
-
-        # store all side-bar widgets here
+        # create the sidebar
         sidebar = QWidget()
-        self.sidebarLayout = QVBoxLayout()
-        self.sidebarLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        sidebar.setLayout(self.sidebarLayout)
+        appLayout.addWidget(sidebar)
+
+        sidebar_layout = QVBoxLayout()
+        sidebar_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        sidebar.setLayout(sidebar_layout)
         sidebar.setMaximumWidth(200)
-        self.layout.addWidget(sidebar)
+        self.create_sidebar(sidebar_layout)
 
-        self.initUI()
+    def create_bot_bar(self, layout):
+        """
+        Creates the bot bar
+            - y and x limits input lines
+            - Equal-axes, grid-lines and axes-lines checkboxes
+            - Center x and y buttons
+        """
 
-    def initUI(self):
+        # create the 'Equal axes' checkbox
+        self.equalAxes = QCheckBox("Equal axes")
+        self.equalAxes.stateChanged.connect(self.checked_equalAxes)
+        layout.addWidget(self.equalAxes)
+
+        # create the 'x min' input line
+        self.xmin_input = QLineEdit()
+        self.xmin_input.setMinimumWidth(10)
+
+        self.xmin_input.setText(str(DEFAULT_XMIN))
+        self.xmin_input.textChanged.connect(self.update_xmin)
+        form = QFormLayout()
+        form.addRow(
+            "x min:", self.xmin_input
+        )  # spaces at the beginning are for additional padding
+        layout.addLayout(form)
+
+        # create the 'x max' input line
+        self.xmax_input = QLineEdit()
+        self.xmax_input.setMinimumWidth(10)
+        self.xmax_input.setText(str(DEFAULT_XMAX))
+        self.xmax_input.textChanged.connect(self.update_xmax)
+        form = QFormLayout()
+        form.addRow(
+            "x max:", self.xmax_input
+        )  # spaces at the beginning are for additional padding
+        layout.addLayout(form)
+
+        # create the 'y min' input line
+        self.ymin_input = QLineEdit()
+        self.ymin_input.setMinimumWidth(10)
+        self.ymin_input.setText(str(DEFAULT_YMIN))
+        self.ymin_input.textChanged.connect(self.update_ymin)
+        form = QFormLayout()
+        form.addRow(
+            "y min:", self.ymin_input
+        )  # spaces at the beginning are for additional padding
+        layout.addLayout(form)
+
+        # create the 'y max' input line
+        self.ymax_input = QLineEdit()
+        self.ymax_input.setMinimumWidth(10)
+        self.ymax_input.setText(str(DEFAULT_YMAX))
+        self.ymax_input.textChanged.connect(self.update_ymax)
+        form = QFormLayout()
+        form.addRow(
+            "y max:", self.ymax_input
+        )  # spaces at the beginning are for additional padding
+        layout.addLayout(form)
+
+        self.equalAxes.setChecked(MyApp.equal_axes)
+
+        # create the 'center x' button
+        self.center_x_button = QPushButton("Center &X")
+        self.center_x_button.clicked.connect(self.canvas.centralize_plot_x)
+        self.center_x_button.setShortcut("Alt+X")
+        layout.addWidget(self.center_x_button)
+
+        # create the 'center y' button
+        self.center_y_button = QPushButton("Center &Y")
+        self.center_y_button.clicked.connect(self.canvas.centralize_plot_y)
+        self.center_y_button.setShortcut("Alt+Y")
+        layout.addWidget(self.center_y_button)
+
+        # create the 'Grid' checkbox
+        self.gridCheckBox = QCheckBox("Grid")
+        self.gridCheckBox.setChecked(False)
+        self.gridCheckBox.stateChanged.connect(self.checked_grid)
+        layout.addWidget(self.gridCheckBox)
+
+        # create the 'Axes' checkbox
+        self.axesCheckBox = QCheckBox("Axes")
+        self.axesCheckBox.setChecked(True)
+        self.axesCheckBox.stateChanged.connect(self.checked_axes)
+        layout.addWidget(self.axesCheckBox)
+
+    def create_sidebar(self, layout):
+        """
+        Creates the sidebar
+            - function input line
+            - graph-function, save-image, trace-settings, trace-point buttons
+            - arrow / direction field settings
+            - color settings
+            - mouse line settings
+        """
+
         # create the function input line and graph button
         self.function_input = QLineEdit()
         self.function_input.setText(str(DEFAULT_FUNCTION))
@@ -387,7 +558,7 @@ class MyApp(QWidget):
         form.addRow(
             "  y'(x) =", self.function_input
         )  # spaces at the beginning are for additional padding
-        self.sidebarLayout.addLayout(form)
+        layout.addLayout(form)
 
         graphLayout = QHBoxLayout()
         self.graph_button = QPushButton("Graph")
@@ -400,7 +571,7 @@ class MyApp(QWidget):
         self.save_button.clicked.connect(self.show_save_file_dialog)
         self.save_button.setShortcut("Ctrl+S")
         graphLayout.addWidget(self.save_button)
-        self.sidebarLayout.addLayout(graphLayout)
+        layout.addLayout(graphLayout)
 
         traceLayout = QHBoxLayout()
         # create the 'trace settings' button
@@ -413,11 +584,11 @@ class MyApp(QWidget):
         self.trace_point_button.clicked.connect(self.clicked_trace_point_button)
         self.trace_point_button.setShortcut("Ctrl+P")
         traceLayout.addWidget(self.trace_point_button)
-        self.sidebarLayout.addLayout(traceLayout)
+        layout.addLayout(traceLayout)
 
         # add space
         spacer = QSpacerItem(0, 30, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
-        self.sidebarLayout.addItem(spacer)
+        layout.addItem(spacer)
 
         # arrow settings
         arrow_group = QGroupBox("Direction Field Settings")
@@ -487,10 +658,10 @@ class MyApp(QWidget):
         form.addWidget(self.slider_aw)
         arrow_layout.addLayout(form)
 
-        self.sidebarLayout.addWidget(arrow_group)
+        layout.addWidget(arrow_group)
 
         # add some spacing
-        self.sidebarLayout.addItem(spacer)
+        layout.addItem(spacer)
 
         # color settings group
         color_group = QGroupBox("Color Settings")
@@ -549,10 +720,10 @@ class MyApp(QWidget):
         self.color_map.currentTextChanged.connect(self.canvas.set_color_map)
         color_layout.addWidget(self.color_map)
 
-        self.sidebarLayout.addWidget(color_group)
+        layout.addWidget(color_group)
 
         # add some spacing
-        self.sidebarLayout.addItem(spacer)
+        layout.addItem(spacer)
 
         # mouse line settings group
         mouse_line_group = QGroupBox("Mouse Line Settings")
@@ -606,102 +777,7 @@ class MyApp(QWidget):
         form.addWidget(self.slider_mw)
         mouse_line_layout.addLayout(form)
 
-        self.sidebarLayout.addWidget(mouse_line_group)
-
-        # add spacing that will push the rest to the bottom
-        self.sidebarLayout.addItem(
-            QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        )
-
-        # layout = QHBoxLayout()
-        # # create the 'Grid' checkbox
-        # self.gridCheckBox = QCheckBox("Grid")
-        # self.gridCheckBox.setChecked(False)
-        # self.gridCheckBox.stateChanged.connect(self.checked_grid)
-        # layout.addWidget(self.gridCheckBox)
-
-        # # create the 'Axes' checkbox
-        # self.axesCheckBox = QCheckBox("Axes")
-        # self.axesCheckBox.setChecked(True)
-        # self.axesCheckBox.stateChanged.connect(self.checked_axes)
-        # layout.addWidget(self.axesCheckBox)
-        # self.sidebarLayout.addLayout(layout)
-
-        # create the 'Equal axes' checkbox
-        self.equalAxes = QCheckBox("Equal axes")
-        self.equalAxes.stateChanged.connect(self.checked_equalAxes)
-        self.bot_barLayout.addWidget(self.equalAxes)
-
-        # create the 'x min' input line
-        self.xmin_input = QLineEdit()
-        self.xmin_input.setMinimumWidth(10)
-
-        self.xmin_input.setText(str(DEFAULT_XMIN))
-        self.xmin_input.textChanged.connect(self.update_xmin)
-        form = QFormLayout()
-        form.addRow(
-            "x min:", self.xmin_input
-        )  # spaces at the beginning are for additional padding
-        self.bot_barLayout.addLayout(form)
-
-        # create the 'x max' input line
-        self.xmax_input = QLineEdit()
-        self.xmax_input.setMinimumWidth(10)
-        self.xmax_input.setText(str(DEFAULT_XMAX))
-        self.xmax_input.textChanged.connect(self.update_xmax)
-        form = QFormLayout()
-        form.addRow(
-            "x max:", self.xmax_input
-        )  # spaces at the beginning are for additional padding
-        self.bot_barLayout.addLayout(form)
-
-        # create the 'y min' input line
-        self.ymin_input = QLineEdit()
-        self.ymin_input.setMinimumWidth(10)
-        self.ymin_input.setText(str(DEFAULT_YMIN))
-        self.ymin_input.textChanged.connect(self.update_ymin)
-        form = QFormLayout()
-        form.addRow(
-            "y min:", self.ymin_input
-        )  # spaces at the beginning are for additional padding
-        self.bot_barLayout.addLayout(form)
-
-        # create the 'y max' input line
-        self.ymax_input = QLineEdit()
-        self.ymax_input.setMinimumWidth(10)
-        self.ymax_input.setText(str(DEFAULT_YMAX))
-        self.ymax_input.textChanged.connect(self.update_ymax)
-        form = QFormLayout()
-        form.addRow(
-            "y max:", self.ymax_input
-        )  # spaces at the beginning are for additional padding
-        self.bot_barLayout.addLayout(form)
-
-        self.equalAxes.setChecked(MyApp.equal_axes)
-
-        # create the 'center x' button
-        self.center_x_button = QPushButton("Center &X")
-        self.center_x_button.clicked.connect(self.canvas.centralize_plot_x)
-        self.center_x_button.setShortcut("Alt+X")
-        self.bot_barLayout.addWidget(self.center_x_button)
-
-        # create the 'center y' button
-        self.center_y_button = QPushButton("Center &Y")
-        self.center_y_button.clicked.connect(self.canvas.centralize_plot_y)
-        self.center_y_button.setShortcut("Alt+Y")
-        self.bot_barLayout.addWidget(self.center_y_button)
-
-        # create the 'Grid' checkbox
-        self.gridCheckBox = QCheckBox("Grid")
-        self.gridCheckBox.setChecked(False)
-        self.gridCheckBox.stateChanged.connect(self.checked_grid)
-        self.bot_barLayout.addWidget(self.gridCheckBox)
-
-        # create the 'Axes' checkbox
-        self.axesCheckBox = QCheckBox("Axes")
-        self.axesCheckBox.setChecked(True)
-        self.axesCheckBox.stateChanged.connect(self.checked_axes)
-        self.bot_barLayout.addWidget(self.axesCheckBox)
+        layout.addWidget(mouse_line_group)
 
     def show_save_file_dialog(self):
         """Opens a dialog to save the current figure as a png or svg file."""
@@ -716,16 +792,23 @@ class MyApp(QWidget):
 
     def execute_graph_function(self):
         """Executes the function given in the function input line."""
+
+        # if the function is the same as the last one, don't do anything
         func_str = self.function_input.text()
+        if self.canvas.dfb.function_string == func_str:
+            return
+
         success = False
 
-        # save the last function in case the new one is invalid
-        # it is possible that the last is invalid as well iff
-        # 1. the user entered a valid function that is not defined everywhere
-        # 2. moved the canvas so that the whole rendering region is undefined --> no arrows are drawn
-        # 3. entered an invalid function s.t. it is undefined on the whole rendering region
-        #    --> ValueErrors are raised before NameErrors and ihe invalid function is not detected
-        # 4. moved the canvas such that there is a point where the NameError is raised (ValueError is not raised)
+        """
+        Save the last function in case the new one is invalid
+        it is possible that the last is invalid as well iff
+        1. the user entered a valid function that is not defined everywhere
+        2. moved the canvas so that the whole rendering region is undefined --> no arrows are drawn
+        3. entered an invalid function s.t. it is undefined on the whole rendering region
+           --> ValueErrors are raised before NameErrors and ihe invalid function is not detected
+        4. moved the canvas such that there is a point where the NameError is raised (ValueError is not raised)
+        """
 
         previous = self.canvas.dfb.function
         try:
@@ -734,18 +817,14 @@ class MyApp(QWidget):
             self.canvas.redraw(just_entered_new_function=True)
             success = True
         except:
-            QMessageBox.critical(self, "Error", f"Invalid function")
+            QMessageBox.critical(self, "Error", f"Invalid function.")
 
         # restore the previous function if the new one is invalid
         if not success:
             self.canvas.dfb.function = previous
             self.canvas.redraw()
         else:
-            if self.canvas.dfb.function_string != func_str:
-                self.canvas.dfb.function_string = func_str
-                self.canvas.dfb.trace_settings.auto_singularity_detection = (
-                    not self.canvas.dfb.trace_settings.has_singularity_for(func_str)
-                )
+            self.canvas.dfb.function_string = func_str
 
     def checked_equalAxes(self, checked):
         """Turns equal_axes on and off."""
@@ -763,6 +842,7 @@ class MyApp(QWidget):
         self.canvas.redraw()
 
     def enable_input_lines(self, enabled):
+        """Enables or disables all of the input lines for x and y limits."""
         self.xmin_input.setEnabled(enabled)
         self.xmax_input.setEnabled(enabled)
         self.ymin_input.setEnabled(enabled)
@@ -785,9 +865,11 @@ class MyApp(QWidget):
         self.canvas.set_color_precision(color_precision)
 
     def checked_grid(self, checked):
+        """Turns grid lines on and off."""
         self.canvas.set_grid_enabled(checked)
 
     def checked_axes(self, checked):
+        """Turns axes lines on and off."""
         self.canvas.set_axes_enabled(checked)
 
     def clicked_trace_point_button(self):
@@ -801,7 +883,7 @@ class MyApp(QWidget):
                 xlim = self.canvas.get_xlim()
                 ylim = self.canvas.get_ylim()
                 if x < xlim[0] or x > xlim[1]:
-                    QMessageBox.warning(self, "Warning", f"X is out of bounds, not tracing.")
+                    QMessageBox.warning(self, "Warning", "X is out of bounds, not tracing.")
                     return
                 elif y < ylim[0] or y > ylim[1]:
                     # create messagebox to ask if the user wishes to continue
@@ -906,9 +988,11 @@ class MyApp(QWidget):
         self.canvas.redraw()
 
     def add_more_arrows(self):
+        """Adds 5 arrows."""
         self.num_arrows_input.setText(str(int(self.num_arrows_input.text()) + 5))
 
     def remove_some_arrows(self):
+        """Removes 5 arrows."""
         self.num_arrows_input.setText(str(int(self.num_arrows_input.text()) - 5))
 
     def changed_arrow_length(self):
@@ -949,32 +1033,34 @@ class MyApp(QWidget):
 
 
 def main():
-    app = QApplication(sys.argv)
-    app.setApplicationName("Direction Field Visualizer")
-    myApp = MyApp()
-    main_win = QMainWindow()
-    main_win.setCentralWidget(myApp)
-
     # magic for pyinstaller to find the icon
     if getattr(sys, "frozen", False):
         icon = os.path.join(sys._MEIPASS, "src/icon.ico")
     else:
         icon = "src/icon.ico"
 
+    # create the application
+    app = QApplication(sys.argv)
+    app.setApplicationName("Direction Field Visualizer")
     app.setStyleSheet(
         """
-    QToolTip {
-        background-color: #f0f0f0;
-        color: black;
-        border: 2px solid black;
-        padding: 4px;
-    }
-"""
+            QToolTip {
+                background-color: #f0f0f0;
+                color: black;
+                border: 2px solid black;
+                padding: 4px;
+            }
+        """
     )
 
+    # create the main window
+    myApp = MyApp()
+    main_win = QMainWindow()
+    main_win.setCentralWidget(myApp)
     main_win.setWindowIcon(QIcon(icon))
     main_win.show()
 
+    # run the application
     try:
         sys.exit(app.exec())
     except SystemExit:
