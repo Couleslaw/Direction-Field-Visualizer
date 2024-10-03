@@ -394,9 +394,6 @@ class SolutionTracer:
 
             # singularity detected
             else:
-                print(
-                    f"Singularity detected at {point[0], point[1]}, direction: {direction}, distance: {vector_length(self.sing_diff)}"
-                )
                 # get strategy on how to proceed
                 strategy = self.handle_singularity(point[0], point[1])
 

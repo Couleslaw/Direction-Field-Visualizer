@@ -95,9 +95,9 @@ class TraceSettingsDialog(QDialog):
 
         # Show/Hide button for advanced settings
         self.toggle_button = QPushButton(
-            "Hide Advanced Settings"
+            "Hide advanced settings"
             if self.settings.show_advanced_settings
-            else "Show Advanced Settings"
+            else "Show advanced settings"
         )
         self.toggle_button.clicked.connect(self.toggle_advanced_settings)
         layout.addWidget(self.toggle_button)
@@ -138,7 +138,7 @@ class TraceSettingsDialog(QDialog):
         color_layout = QHBoxLayout()
 
         # Button to open color picker dialog
-        self.color_button = QPushButton("Choose Color", self)
+        self.color_button = QPushButton("Choose color", self)
         self.color_button.clicked.connect(self.open_color_dialog)
         color_layout.addWidget(self.color_button)
 
@@ -185,7 +185,7 @@ Increase precision only if a singularity is not detected correctly.
         layout.addWidget(self.slider_p)
 
         # Singularity detection settings
-        self.singularity_strategy_group_box = QGroupBox("Singularity Detection Strategy")
+        self.singularity_strategy_group_box = QGroupBox("Singularity detection strategy")
         singularity_layout = QVBoxLayout()
         self.singularity_strategy_group_box.setLayout(singularity_layout)
         self.singularity_strategy_group_box.setVisible(self.settings.show_advanced_settings)
@@ -288,12 +288,12 @@ come back, you can set this to a higher value."""
             self.label_p.setVisible(False)
             self.slider_p.setVisible(False)
             self.singularity_strategy_group_box.setVisible(False)
-            self.toggle_button.setText("Show Advanced Settings")
+            self.toggle_button.setText("Show advanced settings")
         else:
             self.label_p.setVisible(True)
             self.slider_p.setVisible(True)
             self.singularity_strategy_group_box.setVisible(True)
-            self.toggle_button.setText("Hide Advanced Settings")
+            self.toggle_button.setText("Hide advanced settings")
         self.settings.show_advanced_settings = not self.settings.show_advanced_settings
         self.adjustSize()
 
@@ -560,6 +560,10 @@ class MyApp(QWidget):
         )  # spaces at the beginning are for additional padding
         layout.addLayout(form)
 
+        # add space
+        spacer = QSpacerItem(0, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
+        layout.addItem(spacer)
+
         graphLayout = QHBoxLayout()
         self.graph_button = QPushButton("Graph")
         self.graph_button.clicked.connect(self.execute_graph_function)
@@ -587,7 +591,6 @@ class MyApp(QWidget):
         layout.addLayout(traceLayout)
 
         # add space
-        spacer = QSpacerItem(0, 30, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
         layout.addItem(spacer)
 
         # arrow settings
