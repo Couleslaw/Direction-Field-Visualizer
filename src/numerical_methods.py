@@ -130,6 +130,30 @@ class TraceSettings:
             MAX_TRACE_LINES_WIDTH - MIN_TRACE_LINES_WIDTH
         )
 
+    def set_new_singularity_equation(self, slope_func, equation_str, xlim, ylim) -> bool:
+        """Checks if the equation is valid and sets it if it is. Returns True if the equation is valid."""
+
+        try:
+            func = create_function_from_string(equation_str)
+            # try to evaluate the equation at a few random points
+            for _ in range(20):
+                try:
+                    x = np.random.uniform(xlim[0], xlim[1])
+                    y = np.random.uniform(ylim[0], ylim[1])
+                    func(x, y)
+                except ZeroDivisionError:  # can be a singularity
+                    pass
+                except ValueError:  # it might not be defined everywhere
+                    pass
+        except:
+            # the equation is not valid
+            return False
+
+        # the equation seems valid --> accept
+        self.singularity_equations[slope_func] = equation_str
+        self.auto_singularity_detection = False
+        return True
+
 
 class SolutionTracer:
     """Class for tracing a solution curve with an initial point (x0, y0) and a given slope function."""

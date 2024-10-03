@@ -3,6 +3,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from src.direction_field_builder import DirectionFieldBuilder
 from src.default_constants import DEFAULT_XMIN, DEFAULT_XMAX, DEFAULT_YMIN, DEFAULT_YMAX
+from src.numerical_methods import create_function_from_string
 
 
 class Canvas(FigureCanvas):
@@ -96,6 +97,33 @@ class Canvas(FigureCanvas):
 
     def redraw(self, just_entered_new_function=False):
         self.dfb.draw_field(just_entered_new_function)
+
+    def set_new_function(self, new_function: str) -> bool:
+        """Checks if the new function is valid and sets it if it is.
+
+        Args:
+            new_function (str): Expression of the new function to be plotted.
+
+        Returns:
+            bool: True if the function is valid and was set, False otherwise.
+        """
+
+        # save the previous function in case the new one is invalid
+        previous_function = self.dfb.function
+
+        try:
+            # set new function and redraw the plot
+            self.dfb.function = create_function_from_string(new_function)
+            self.redraw(just_entered_new_function=True)
+        except:
+            # if the function is invalid, revert and redraw the plot
+            self.dfb.function = previous_function
+            self.redraw(just_entered_new_function=False)
+            return False
+
+        # if the function is valid, update the function string
+        self.dfb.function_string = new_function
+        return True
 
     def set_equal_axes(self):
         self.redraw()
