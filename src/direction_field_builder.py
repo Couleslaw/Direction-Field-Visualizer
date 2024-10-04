@@ -363,8 +363,8 @@ class DirectionFieldBuilder:
 
         # trace right and left from the center point
         tracer = SolutionTracer(self.trace_settings, self.function_string, xlim, ylim)
-        right_line = tracer.trace(x, y, SolutionTracer.FORWARD)
-        left_line = tracer.trace(x, y, SolutionTracer.BACKWARD)
+        right_line = tracer.trace(x, y, SolutionTracer.Direction.Forward)
+        left_line = tracer.trace(x, y, SolutionTracer.Direction.Backward)
 
         # draw the solution curve
         line_width = self.trace_settings.get_line_width()

@@ -1,5 +1,6 @@
 import numpy as np
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtCore import QUrl, Qt
 from PyQt6.QtWidgets import (
     QWidget,
     QLabel,
@@ -19,7 +20,7 @@ from PyQt6.QtWidgets import (
     QGroupBox,
 )
 
-from src.gui.tracing import CoordinateDialog, TraceSettingsDialog
+from src.gui.tracing_dialogs import CoordinateDialog, TraceSettingsDialog
 from src.canvas import Canvas
 from src.default_constants import *
 
@@ -33,6 +34,8 @@ class VisualizerApp(QWidget):
         super().__init__()
         self.setMinimumSize(900, 560)
         self.setWindowTitle("Direction Field Visualizer")
+
+        # call open_wiki function on F1 press
 
         appLayout = QHBoxLayout()
         self.setLayout(appLayout)
@@ -63,6 +66,17 @@ class VisualizerApp(QWidget):
         sidebar.setMaximumWidth(200)
         self.create_sidebar(sidebar_layout)
 
+    def keyPressEvent(self, event):
+        """Opens the user guide on F1 press."""
+        if event.key() == Qt.Key.Key_F1:
+            self.open_user_guide()
+
+    def open_user_guide(self):
+        """Opens the user guide in the default browser."""
+        QDesktopServices.openUrl(
+            QUrl("https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/User-Guide")
+        )
+
     def create_bot_bar(self, layout):
         """
         Creates the bot bar
@@ -73,6 +87,9 @@ class VisualizerApp(QWidget):
 
         # create the 'Equal axes' checkbox
         self.equalAxes = QCheckBox("Equal axes")
+        self.equalAxes.setToolTip(
+            "If checked, the x and y axes will have the same scale.\nUncheck for manual control."
+        )
         self.equalAxes.stateChanged.connect(self.checked_equalAxes)
         layout.addWidget(self.equalAxes)
 
@@ -125,24 +142,28 @@ class VisualizerApp(QWidget):
 
         # create the 'center x' button
         self.center_x_button = QPushButton("Center &X")
+        self.center_x_button.setToolTip("Center the plot on the x-axis.\nShortcut 'Alt+X'")
         self.center_x_button.clicked.connect(self.canvas.centralize_plot_x)
         self.center_x_button.setShortcut("Alt+X")
         layout.addWidget(self.center_x_button)
 
         # create the 'center y' button
         self.center_y_button = QPushButton("Center &Y")
+        self.center_y_button.setToolTip("Center the plot on the y-axis.\nShortcut 'Alt+Y'")
         self.center_y_button.clicked.connect(self.canvas.centralize_plot_y)
         self.center_y_button.setShortcut("Alt+Y")
         layout.addWidget(self.center_y_button)
 
         # create the 'Grid' checkbox
         self.gridCheckBox = QCheckBox("Grid")
+        self.gridCheckBox.setToolTip("Turn grid lines on and off.")
         self.gridCheckBox.setChecked(False)
         self.gridCheckBox.stateChanged.connect(self.checked_grid)
         layout.addWidget(self.gridCheckBox)
 
         # create the 'Axes' checkbox
         self.axesCheckBox = QCheckBox("Axes")
+        self.axesCheckBox.setToolTip("Turn axes lines on and off.")
         self.axesCheckBox.setChecked(True)
         self.axesCheckBox.stateChanged.connect(self.checked_axes)
         layout.addWidget(self.axesCheckBox)
@@ -159,6 +180,7 @@ class VisualizerApp(QWidget):
 
         # create the function input line and graph button
         self.function_input = QLineEdit()
+        self.function_input.setPlaceholderText("Enter a function")
         self.function_input.setText(str(DEFAULT_FUNCTION))
         form = QFormLayout()
         form.addRow(
@@ -172,12 +194,14 @@ class VisualizerApp(QWidget):
 
         graphLayout = QHBoxLayout()
         self.graph_button = QPushButton("Graph")
+        self.graph_button.setToolTip("Graph the above entered function.\nShortcut: 'Enter'")
         self.graph_button.clicked.connect(self.execute_graph_function)
         self.graph_button.setShortcut("Return")
         graphLayout.addWidget(self.graph_button)
 
         # create the 'save image' button
         self.save_button = QPushButton("&Save image")
+        self.save_button.setToolTip("Export the figure as PNG/SVG/PDF.\nShortcut: 'Ctrl+S'")
         self.save_button.clicked.connect(self.show_save_file_dialog)
         self.save_button.setShortcut("Ctrl+S")
         graphLayout.addWidget(self.save_button)
@@ -186,11 +210,20 @@ class VisualizerApp(QWidget):
         traceLayout = QHBoxLayout()
         # create the 'trace settings' button
         self.trace_settings_button = QPushButton("&Trace settings")
+        self.trace_settings_button.setToolTip(
+            """Open solution tracing settings. A solution can be traced by 
+- right-clicking on the graph
+- clicking on the 'Trace point' to specify an initial value
+Shortcut: 'Ctrl+T'"""
+        )
         self.trace_settings_button.clicked.connect(self.show_trace_settings_dialog)
         self.trace_settings_button.setShortcut("Ctrl+T")
         traceLayout.addWidget(self.trace_settings_button)
         # add button for specifying x and y coordinates of the start point
         self.trace_point_button = QPushButton("Trace &point")
+        self.trace_point_button.setToolTip(
+            "Trace a solution from a given initial value. You can also just right-click on the graph.<br>Shortcut: 'Ctrl+P'"
+        )
         self.trace_point_button.clicked.connect(self.clicked_trace_point_button)
         self.trace_point_button.setShortcut("Ctrl+P")
         traceLayout.addWidget(self.trace_point_button)
@@ -209,14 +242,16 @@ class VisualizerApp(QWidget):
         self.num_arrows_input.setText(str(DEFAULT_NUM_ARROWS))
         self.num_arrows_input.textChanged.connect(self.update_num_arrows)
         form = QFormLayout()
-        form.addRow(
-            "  Number of arrows:", self.num_arrows_input
-        )  # spaces at the beginning are for additional padding
+        num_arrows_label = QLabel("  Number of arrows:")  # spaces for padding
+        num_arrows_label.setToolTip("Number of arrows in the x-direction.")
+        form.addRow(num_arrows_label, self.num_arrows_input)
 
         self.plus_arrows = QPushButton("+")
+        self.plus_arrows.setToolTip("Add 5 arrows.\nShortcut: 'Alt+right'")
         self.plus_arrows.clicked.connect(self.add_more_arrows)
         self.plus_arrows.setShortcut("Alt+right")
         self.minus_arrows = QPushButton("-")
+        self.minus_arrows.setToolTip("Remove 5 arrows.\nShortcut: 'Alt+left'")
         self.minus_arrows.clicked.connect(self.remove_some_arrows)
         self.minus_arrows.setShortcut("Alt+left")
 
@@ -279,6 +314,9 @@ class VisualizerApp(QWidget):
 
         # create the 'Color by curvature' checkbox
         self.colors = QCheckBox("Color by curvature")
+        self.colors.setToolTip(
+            "Toggle on to color the arrows according to the curvature of the function."
+        )
         self.colors.setChecked(True)
         self.colors.stateChanged.connect(self.checked_color)
         color_layout.addWidget(self.colors)
@@ -294,6 +332,9 @@ class VisualizerApp(QWidget):
         self.slider_c.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_c.valueChanged.connect(self.changed_color_contrast)
         self.label_c = QLabel()
+        self.label_c.setToolTip(
+            "Lower contrast means that even small differences in curvature will be visible."
+        )
         self.label_c.setText(f"  &Color contrast: {DEFAULT_COLOR_CONTRAST}   ")
         self.label_c.setBuddy(
             self.slider_c
@@ -314,6 +355,9 @@ class VisualizerApp(QWidget):
         self.slider_cp.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_cp.valueChanged.connect(self.updated_color_precision)
         self.label_cp = QLabel()
+        self.label_cp.setToolTip(
+            "Determines the dx used for calculating curvature. See the <b>User Guide</b> (press <b>F1</b>) for more information."
+        )
         self.label_cp.setText(f"  &Color precision: {DEFAULT_COLOR_PRECISION}   ")
         self.label_cp.setBuddy(self.slider_cp)
         form = QVBoxLayout()
@@ -323,6 +367,7 @@ class VisualizerApp(QWidget):
 
         # create color map dropdown list
         self.color_map = QComboBox()
+        self.color_map.setToolTip("Chose a color map.")
         for color_map in AVAILABLE_COLOR_MAPS:
             self.color_map.addItem(color_map)
         self.color_map.setCurrentText(DEFAULT_COLOR_MAP)
@@ -341,6 +386,9 @@ class VisualizerApp(QWidget):
 
         # create the 'Mouse line' checkbox
         self.mouseLine = QCheckBox("Mouse line")
+        self.mouseLine.setToolTip(
+            "Draw a tangent line at the position of the mouse cursor.\nShortcut: 'Ctrl+M'"
+        )
         self.mouseLine.stateChanged.connect(self.checked_mouseLine)
         self.mouseLine.setChecked(False)
         self.mouseLine.setShortcut("Ctrl+&M")

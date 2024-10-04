@@ -65,8 +65,7 @@ class TraceSettingsDialog(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle("Trace Settings")
-        self.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-        self.setFixedWidth(250)
+        self.setFixedWidth(265)
         self.settings = trace_settings
         self.slope_function_str = slope_function
         self.xlim = xlim
@@ -87,6 +86,9 @@ class TraceSettingsDialog(QDialog):
             else "Show advanced settings"
         )
         self.toggle_button.clicked.connect(self.toggle_advanced_settings)
+        self.toggle_button.setToolTip(
+            "<h4>Hide/show settings for singularity detection</h4>Singularity is a point where the slope of the function goes to infinity. The function can either go to infinity (y = 1/x has a singularity at x=0), or it can abruptly stop (y = sqrt(1-x^2) has singularities at x=1 and x=-1)."
+        )
         layout.addWidget(self.toggle_button)
 
         # Advanced settings
@@ -113,7 +115,6 @@ class TraceSettingsDialog(QDialog):
         self.slider_w.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_w.valueChanged.connect(self.changed_trace_lines_width)
         self.label_w = QLabel()
-        self.label_w.setToolTip("Width of the trace lines.")
         self.label_w.setText(f"  &Trace line width: {self.settings.line_width}   ")
         self.label_w.setBuddy(self.slider_w)
         form = QVBoxLayout()
@@ -129,9 +130,10 @@ class TraceSettingsDialog(QDialog):
         self.color_button.clicked.connect(self.open_color_dialog)
         color_layout.addWidget(self.color_button)
 
-        # Color box (QLabel) to display the current color
-        self.color_box = QLabel(self)
-        self.color_box.setFixedSize(50, 20)  # Size of the color box
+        # Color box to display the current color
+        self.color_box = QPushButton(self)
+        self.color_box.clicked.connect(self.open_color_dialog)
+        self.color_box.setFixedSize(70, 20)  # Size of the color box
         self.update_color_box()  # Set initial color to red
         color_layout.addWidget(self.color_box)
 
@@ -158,12 +160,7 @@ class TraceSettingsDialog(QDialog):
         self.slider_p.setVisible(self.settings.show_advanced_settings)
         self.label_p = QLabel()
         self.label_p.setToolTip(
-            """Trace precision directly affects the size of the dx step used 
-to trace the solution curve. Higher precision means exponentially
-smaller dx and exponentially higher calculation time. It is preferred
-to use equational singularity detection over increasing precision.
-Increase precision only if a singularity is not detected correctly.
-"""
+            "Trace precision directly affects the size of the dx step used to trace the solution curve. Higher precision means exponentially smaller dx and exponentially higher calculation time. It is preferred to use equational singularity detection over increasing precision. Increase precision only if a singularity is not detected correctly."
         )
         self.label_p.setText(f"  &Trace precision: {self.settings.trace_precision}   ")
         self.label_p.setBuddy(self.slider_p)
@@ -179,14 +176,36 @@ Increase precision only if a singularity is not detected correctly.
         layout.addWidget(self.singularity_strategy_group_box)
 
         # Create singularity detection strategy radio buttons
+
+        # automatic detection
         self.radio_automatic_settings = QRadioButton("Automatic")
-        self.radio_manual_settings = QRadioButton("Equational")
+        self.radio_automatic_settings.setToolTip(
+            'Works fine in most cases, detects singularities based on the slope of the function.\nProbably will fail if the singularities appear "suddenly".\nWill be slow if the function has generally high slope.'
+        )
 
-        # Create settings layout
+        # manual detection
+        self.radio_manual_settings = QRadioButton("Equation")
+        self.radio_manual_settings.setToolTip(
+            "Faster, more reliable and more accurate than automatic detection.\nYou have to enter an equation that gives the singularities of the function."
+        )
+
+        # no detection
+        self.radio_none_settings = QRadioButton("None")
+        self.radio_none_settings.setToolTip(
+            "Chose this if you know that the function doesn't have any singularities.\nWill be faster than the other two methods."
+        )
+
+        # Add radio buttons
+        radio_buttons_layout = QHBoxLayout()
+        radio_buttons_layout.addWidget(self.radio_automatic_settings)
+        radio_buttons_layout.addWidget(self.radio_manual_settings)
+        radio_buttons_layout.addWidget(self.radio_none_settings)
+        singularity_layout.addLayout(radio_buttons_layout)
+
+        # Create settings layouts
         automatic_settings_layout = QVBoxLayout()
-        self.create_automatic_settings(automatic_settings_layout)
-
         manual_detection_layout = QVBoxLayout()
+        self.create_automatic_settings(automatic_settings_layout)
         self.create_manual_detection_settings(manual_detection_layout)
 
         # Wrap the settings layouts in QWidget objects for hiding/showing
@@ -196,23 +215,22 @@ Increase precision only if a singularity is not detected correctly.
         self.manual_detection_widget = QWidget()
         self.manual_detection_widget.setLayout(manual_detection_layout)
 
-        # Add radio buttons and settings to the main layout
-        radio_buttons_layout = QHBoxLayout()
-        radio_buttons_layout.addWidget(self.radio_automatic_settings)
-        radio_buttons_layout.addWidget(self.radio_manual_settings)
+        self.no_detection_widget = QWidget()
 
-        singularity_layout.addLayout(radio_buttons_layout)
         singularity_layout.addWidget(self.automatic_settings_widget)
         singularity_layout.addWidget(self.manual_detection_widget)
+        singularity_layout.addWidget(self.no_detection_widget)
 
         # Connect radio button signals to switch function
         self.radio_automatic_settings.toggled.connect(self.switch_detection_settings)
         self.radio_manual_settings.toggled.connect(self.switch_detection_settings)
+        self.radio_none_settings.toggled.connect(self.switch_detection_settings)
 
         # Set initial state
-        manual = self.settings.has_singularity_for(self.slope_function_str)
-        self.radio_automatic_settings.setChecked(not manual)
-        self.radio_manual_settings.setChecked(manual)
+        strategy = self.settings.get_preferred_detection_for(self.slope_function_str)
+        self.radio_automatic_settings.setChecked(strategy == TraceSettings.Strategy.Automatic)
+        self.radio_manual_settings.setChecked(strategy == TraceSettings.Strategy.Manual)
+        self.radio_none_settings.setChecked(strategy == TraceSettings.Strategy.None_)
         self.switch_detection_settings()  # Ensure correct initial state
 
     def create_automatic_settings(self, layout):
@@ -232,8 +250,10 @@ Increase precision only if a singularity is not detected correctly.
         self.slider_s.valueChanged.connect(self.changed_singularity_min_slope)
         self.label_s = QLabel()
         self.label_s.setToolTip(
-            """This settings determines the minimum slope the function must have 
-in order for the singularity detection to kick in."""
+            """The minimum slope the function must have at point (x,y) in order
+for the singularity detection to kick in when at that point.
+- higher value: faster, but less accurate
+- lower value: possibly much slower, but more accurate"""
         )
         self.label_s.setText(f"  &Singularity slope: {self.settings.singularity_min_slope}   ")
         self.label_s.setBuddy(self.slider_s)
@@ -246,12 +266,12 @@ in order for the singularity detection to kick in."""
         self.y_margin_input.textChanged.connect(self.update_y_margin)
         label = QLabel("  Y offscreen margin:")
         label.setToolTip(
-            """When the solution curve goes offscreen when tracing, it is cut off
-if it gets too far to save calculation time. This setting determines
-how many screen heights the curve can go offscreen before it is cut off.
-You can make this 0 if you know that the curve doesn't go offscreen.
-Or if the curve goes really far offscreen, but you know that it will
-come back, you can set this to a higher value."""
+            """When the solution curve goes offscreen, it is cut off if it gets
+too far, to save calculation time. This setting determines how many
+screen heights the curve can go offscreen before it is cut off.
+- set this to 0 if you know that the curve doesn't go offscreen.
+- if the curve goes really far offscreen and you know it will
+  eventually come back, but it doesn't, increase this value."""
         )
         form = QFormLayout()
         form.addRow(label, self.y_margin_input)
@@ -268,6 +288,13 @@ come back, you can set this to a higher value."""
         self.equation_input.setPlaceholderText("Enter singularity equation")
         form = QHBoxLayout()
         form.addWidget(QLabel("  0 ="))
+        self.equation_input.setToolTip(
+            """The equation that defines the singularities of the function.
+Examples:
+    - y' = x/y  ⟶  y=0
+    - y' = cos(x)/sin(x)  ⟶  sin(x)=0
+    - y' = (x+y)/ln(abs(x))  ⟶  ln(abs(x))=0 or abs(x)-1=0"""
+        )
         form.addWidget(self.equation_input)
         layout.addLayout(form)
 
@@ -289,11 +316,17 @@ come back, you can set this to a higher value."""
     def switch_detection_settings(self):
         """Switches displayed detection settings based on the selected radio button"""
         if self.radio_automatic_settings.isChecked():
+            self.no_detection_widget.setVisible(False)
             self.manual_detection_widget.setVisible(False)
             self.automatic_settings_widget.setVisible(True)
         elif self.radio_manual_settings.isChecked():
+            self.no_detection_widget.setVisible(False)
             self.automatic_settings_widget.setVisible(False)
             self.manual_detection_widget.setVisible(True)
+        elif self.radio_none_settings.isChecked():
+            self.automatic_settings_widget.setVisible(False)
+            self.manual_detection_widget.setVisible(False)
+            self.no_detection_widget.setVisible(True)
         self.adjustSize()
 
     def accept(self):
@@ -304,26 +337,46 @@ come back, you can set this to a higher value."""
 
         # auto detection --> accept
         if self.radio_automatic_settings.isChecked():
-            self.settings.auto_singularity_detection = True
+            self.settings.set_preferred_detection_for(
+                self.slope_function_str, TraceSettings.Strategy.Automatic
+            )
+            super().accept()
+            return
+
+        # no detection --> accept
+        if self.radio_none_settings.isChecked():
+            self.settings.set_preferred_detection_for(
+                self.slope_function_str, TraceSettings.Strategy.None_
+            )
             super().accept()
             return
 
         # manual detection
         equation = self.equation_input.text()
 
-        # if no equation --> switch to auto and accept
+        # if no equation
         if equation == "":
-            self.settings.auto_singularity_detection = True
+            # if wants manual --> show warning
+            if (
+                self.settings.get_preferred_detection_for(self.slope_function_str)
+                == TraceSettings.Strategy.Manual
+            ):
+                QMessageBox.warning(self, "Warning", f"Please enter a singularity equation.")
+                return
+            # else dont change the detection strategy
             super().accept()
             return
 
+        # get previous equation
         previous_equation = self.settings.singularity_equations.get(
             self.slope_function_str, None
         )
 
         # if same equation --> accept
         if equation == previous_equation:
-            self.settings.auto_singularity_detection = False
+            self.settings.set_preferred_detection_for(
+                self.slope_function_str, TraceSettings.Strategy.Manual
+            )
             super().accept()
             return
 
@@ -331,6 +384,9 @@ come back, you can set this to a higher value."""
         if self.settings.set_new_singularity_equation(
             self.slope_function_str, equation, self.xlim, self.ylim
         ):
+            self.settings.set_preferred_detection_for(
+                self.slope_function_str, TraceSettings.Strategy.Manual
+            )
             super().accept()
         else:
             QMessageBox.critical(self, "Error", f"Invalid singularity equation.")
