@@ -12,8 +12,12 @@ from src.default_constants import (
     DEFAULT_TRACE_Y_MARGIN,
     DEFAULT_TRACE_PRECISION,
     DEFAULT_SINGULARITY_MIN_SLOPE,
-    MAX_TRACE_GRANULARITY,
-    MIN_TRACE_GRANULARITY,
+    MIN_TRACE_DX_GRANULARITY,
+    MAX_TRACE_DX_GRANULARITY,
+    MIN_TRACE_MIN_STEP_GRANULARITY,
+    MAX_TRACE_MIN_STEP_GRANULARITY,
+    MIN_TRACE_MAX_STEP_GRANULARITY,
+    MAX_TRACE_MAX_STEP_GRANULARITY,
     MAX_TRACE_PRECISION,
     MIN_TRACE_PRECISION,
 )
@@ -39,6 +43,12 @@ def vector_length(vector):
     return np.linalg.norm(vector)
 
 
+def round_if_close_to_zero(x, epsilon=1e-9):
+    if fabs(x) < epsilon:
+        return 0
+    return x
+
+
 def newtons_method(function: Callable[[float], float], x0, precision=1e-4):
     """Newton's method for finding roots of a function."""
 
@@ -53,6 +63,8 @@ def newtons_method(function: Callable[[float], float], x0, precision=1e-4):
     i = 0
     while True:
         xnew = xlast - function(xlast) / derivative(function, xlast)
+        if xnew == 0:
+            return xnew
         error = relative_error(xnew, xlast)
         xlast = xnew
         i = i + 1
@@ -102,9 +114,8 @@ class TraceSettings:
         self.trace_precision = DEFAULT_TRACE_PRECISION
         self.singularity_min_slope = DEFAULT_SINGULARITY_MIN_SLOPE
         self.show_advanced_settings = False
-        self.singularity_equations = (
-            dict()
-        )  # slope function string -> singularity equation string
+        # slope function string -> singularity equation string
+        self.singularity_equations = {"x/y": "y"}
         self.preferred_detection = dict()  # slope function string -> detection strategy
 
     def copy(self):
@@ -135,11 +146,29 @@ class TraceSettings:
     def get_preferred_detection_for(self, slope_func: str):
         return self.preferred_detection.get(slope_func, self.Strategy.Automatic)
 
-    def get_trace_granularity(self):
+    def get_trace_dx_granularity(self):
         """Converts trace precision to granularity, which is then used to calculate dx."""
-        return MIN_TRACE_GRANULARITY + (MAX_TRACE_GRANULARITY - MIN_TRACE_GRANULARITY) * (
-            self.trace_precision - MIN_TRACE_PRECISION
-        ) / (MAX_TRACE_PRECISION - MIN_TRACE_PRECISION)
+        return MIN_TRACE_DX_GRANULARITY + (
+            MAX_TRACE_DX_GRANULARITY - MIN_TRACE_DX_GRANULARITY
+        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
+            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
+        )
+
+    def get_trace_min_step_granularity(self):
+        """Converts trace precision to granularity, which is then used to calculate min_step."""
+        return MIN_TRACE_MIN_STEP_GRANULARITY + (
+            MAX_TRACE_MIN_STEP_GRANULARITY - MIN_TRACE_MIN_STEP_GRANULARITY
+        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
+            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
+        )
+
+    def get_trace_max_step_granularity(self):
+        """Converts trace precision to granularity, which is then used to calculate max_step."""
+        return MIN_TRACE_MAX_STEP_GRANULARITY + (
+            MAX_TRACE_MAX_STEP_GRANULARITY - MIN_TRACE_MAX_STEP_GRANULARITY
+        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
+            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
+        )
 
     def get_line_width(self):
         """Converts line width entered by the user to a value that is then actually used."""
@@ -177,8 +206,10 @@ class SolutionTracer:
 
     # trace direction constants
     class Direction:
-        Forward = 1
-        Backward = -1
+        Right = 1
+        Left = -1
+        Up = 1
+        Down = -1
 
     # singularity handling return codes
     class Strategy:
@@ -299,9 +330,12 @@ class SolutionTracer:
 
         # this is in a try block because slope_func is unsafe
         try:
+            der = self.slope_func(x, y)
+            der = round_if_close_to_zero(der)
+
             # auto detection --> use sing_dx to determine size of diff
             if self.detection_strategy == TraceSettings.Strategy.Automatic:
-                diff = np.array([self.sing_dx, self.sing_dx * self.slope]) * self.direction
+                diff = np.array([self.sing_dx, self.sing_dx * der]) * self.direction
 
             # manual detection --> use distance to singularity to determine size of diff
             else:
@@ -322,9 +356,11 @@ class SolutionTracer:
             nx, ny = x + diff[0], y + diff[1]
 
             # calculate first and second derivative at (nx, ny)
-            nslope = self.slope_func(nx, ny)
             sdx = 1e-15
-            second_der = (self.slope_func(nx + sdx, ny + sdx * nslope) - nslope) / sdx
+            n_der = self.slope_func(nx, ny)
+            n_der = round_if_close_to_zero(n_der)
+            n_der2 = (self.slope_func(nx + sdx, ny + sdx * n_der) - n_der) / sdx
+            n_der2 = round_if_close_to_zero(n_der2)
 
         except:
             # either division-by-zero, math-domain-error or the function is not valid
@@ -335,10 +371,10 @@ class SolutionTracer:
         def can_continue():
             # manual detection will deal with the singularity
             if self.detection_strategy == TraceSettings.Strategy.Manual:
-                return True
+                return vector_length(self.sing_diff) > self.min_step
 
             # if the slope is very steep, there is almost certainly a singularity --> STOP
-            if fabs(self.slope) > 1e6:
+            if fabs(der) > 1e6:
                 return False
 
             # this is automatic detection --> steep slope
@@ -348,52 +384,80 @@ class SolutionTracer:
             return self.is_monotonous_on(np.array([x, y]), 2 * vector, 10)
 
         # convex up - forward
-        if self.slope > 0 and self.direction == self.Direction.Forward:
-            if second_der > 0 and nslope < 0:  # convex down
+        if der > 0 and self.direction == self.Direction.Right:
+            if n_der2 > 0 and n_der < 0:  # convex down
                 return self.Strategy.Infinite
-            if second_der > 0 and nslope > 0:  # convex up
+            if n_der2 > 0 and n_der > 0:  # convex up
                 return self.Strategy.Continue if can_continue() else self.Strategy.Stop
-            if second_der < 0 and nslope > 0:  # concave up
+            if n_der2 < 0 and n_der > 0:  # concave up
                 return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
-            if second_der < 0 and nslope < 0:  # concave down
+            if n_der2 < 0 and n_der < 0:  # concave down
                 return self.Strategy.Stop
 
         # concave down - forward
-        if self.slope < 0 and self.direction == self.Direction.Forward:
-            if second_der > 0 and nslope < 0:  # convex down
+        if der < 0 and self.direction == self.Direction.Right:
+            if n_der2 > 0 and n_der < 0:  # convex down
                 return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
-            if second_der > 0 and nslope > 0:  # convex up
+            if n_der2 > 0 and n_der > 0:  # convex up
                 return self.Strategy.Stop
-            if second_der < 0 and nslope > 0:  # concave up
+            if n_der2 < 0 and n_der > 0:  # concave up
                 return self.Strategy.Infinite
-            if second_der < 0 and nslope < 0:  # concave down
+            if n_der2 < 0 and n_der < 0:  # concave down
                 return self.Strategy.Continue if can_continue() else self.Strategy.Stop
 
         # concave up - backward
-        if self.slope > 0 and self.direction == self.Direction.Backward:
-            if second_der > 0 and nslope < 0:  # convex down
+        if der > 0 and self.direction == self.Direction.Left:
+            if n_der2 > 0 and n_der < 0:  # convex down
                 return self.Strategy.Stop
-            if second_der > 0 and nslope > 0:  # convex up
+            if n_der2 > 0 and n_der > 0:  # convex up
                 return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
-            if second_der < 0 and nslope > 0:  # concave up
+            if n_der2 < 0 and n_der > 0:  # concave up
                 return self.Strategy.Continue if can_continue() else self.Strategy.Stop
-            if second_der < 0 and nslope < 0:  # concave down
+            if n_der2 < 0 and n_der < 0:  # concave down
                 return self.Strategy.Infinite
 
         # convex down - backward
-        if self.slope < 0 and self.direction == self.Direction.Backward:
-            if second_der > 0 and nslope < 0:  # convex down
+        if der < 0 and self.direction == self.Direction.Left:
+            if n_der2 > 0 and n_der < 0:  # convex down
                 return self.Strategy.Continue if can_continue() else self.Strategy.Stop
-            if second_der > 0 and nslope > 0:  # convex up
+            if n_der2 > 0 and n_der > 0:  # convex up
                 return self.Strategy.Infinite
-            if second_der < 0 and nslope > 0:  # concave up
+            if n_der2 < 0 and n_der > 0:  # concave up
                 return self.Strategy.Stop
-            if second_der < 0 and nslope < 0:  # concave down
+            if n_der2 < 0 and n_der < 0:  # concave down
                 return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
 
-        if second_der == 0:
-            return self.Strategy.Continue
-        return self.Strategy.Stop
+        return self.Strategy.Continue if can_continue() else self.Strategy.Stop
+
+    def get_last_point_on_line(self, x0, y0, direction):
+        """
+        Goes off to infinity (and possibly stops) from (x0, y0) in the given direction.
+        This can be either an INFINITE or a STOP singularity.
+        """
+
+        assert direction in [self.Direction.Up, self.Direction.Down]
+
+        point = np.array([x0, y0])
+        vector = np.array([0, direction]) * self.max_step
+
+        while True:
+            # if y out of bounds --> break
+            if point[1] < self.ylim[0] or point[1] > self.ylim[1]:
+                break
+
+            try:  # slope_func is unsafe
+                der = self.slope_func(point[0], point[1])
+                n_der = self.slope_func(point[0], point[1] + vector[1])
+            except:
+                return point
+
+            # if the slope changes sign --> STOP
+            if sign(der) != sign(n_der):
+                break
+
+            point += vector
+
+        return point
 
     def trace(self, x0, y0, direction) -> list[Tuple[float, float]]:
         """
@@ -405,14 +469,18 @@ class SolutionTracer:
         point = np.array([x0, y0])  # current point
 
         # manual detection
-        self.min_step = self.diagonal_len / 10 ** self.settings.get_trace_granularity()
-        self.max_step = self.diagonal_len / 1000
+        self.min_step = (
+            self.diagonal_len / 10 ** self.settings.get_trace_min_step_granularity()
+        )
+        self.max_step = (
+            self.diagonal_len / 10 ** self.settings.get_trace_max_step_granularity()
+        )
         self.singularity_alert_distance = self.diagonal_len / 100
 
         # max_dx is the maximum step size in x direction
         self.max_dx = (
             self.xlim[1] - self.xlim[0]
-        ) / 10 ** self.settings.get_trace_granularity()
+        ) / 10 ** self.settings.get_trace_dx_granularity()
         # sing_dx is the step size used when a singularity is detected in auto-detection mode
         self.sing_dx = min(1e-6, self.max_dx / 1000)
 
@@ -463,11 +531,8 @@ class SolutionTracer:
                 # if the function goes off to infinity
                 if strategy == self.Strategy.Infinite:
                     # last line segment should go off screen
-                    line.append(
-                        point
-                        + np.array([0, sign(self.slope) * direction])
-                        * (self.ylim[1] - self.ylim[0])
-                    )
+                    line_direction = sign(self.slope) * direction
+                    point = self.get_last_point_on_line(point[0], point[1], line_direction)
                     break
 
                 # if the tracing should continue
@@ -475,7 +540,7 @@ class SolutionTracer:
                     # manual detection
                     if self.detection_strategy == TraceSettings.Strategy.Manual:
                         # step_size = distance to singularity / 2
-                        step_size = vector_length(self.sing_diff) / 2
+                        step_size = vector_length(self.sing_diff) / 4
                         self.vector = resize_vector(self.vector, step_size)
                         # if the step is too big, resize it
                         if fabs(self.vector[0]) > self.max_dx:

@@ -160,7 +160,7 @@ class TraceSettingsDialog(QDialog):
         self.slider_p.setVisible(self.settings.show_advanced_settings)
         self.label_p = QLabel()
         self.label_p.setToolTip(
-            "Trace precision directly affects the size of the dx step used to trace the solution curve. Higher precision means exponentially smaller dx and exponentially higher calculation time. It is preferred to use equational singularity detection over increasing precision. Increase precision only if a singularity is not detected correctly."
+            "Trace precision directly affects the step size used to trace the solution curve. This affects both Automatic and Equational detection. Higher precision means exponentially smaller step size and exponentially higher calculation time. It is preferred to use equational singularity detection over increasing precision. Increase precision only if a singularity is not being detected correctly."
         )
         self.label_p.setText(f"  &Trace precision: {self.settings.trace_precision}   ")
         self.label_p.setBuddy(self.slider_p)

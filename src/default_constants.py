@@ -14,8 +14,16 @@ DEFAULT_TRACE_Y_MARGIN = 20
 MAX_TRACE_Y_MARGIN = 1000
 
 # dx = (xlim[1]-xlim[0]) / 10^Granulity
-MIN_TRACE_GRANULARITY = 2
-MAX_TRACE_GRANULARITY = 7
+MIN_TRACE_DX_GRANULARITY = 2
+MAX_TRACE_DX_GRANULARITY = 6
+
+# min_step = diagonal / 10^Granulity
+MIN_TRACE_MIN_STEP_GRANULARITY = 4
+MAX_TRACE_MIN_STEP_GRANULARITY = 10
+
+# max_step = diagonal / 10^Granulity
+MIN_TRACE_MAX_STEP_GRANULARITY = 2
+MAX_TRACE_MAX_STEP_GRANULARITY = 6
 
 # granularity is linearly interpolated from precision
 MIN_TRACE_PRECISION = 1
