@@ -74,16 +74,16 @@ def newtons_method(function: Callable[[float], float], x0, precision=1e-4):
 
 
 def find_first_intersection(
-    slope_func: Callable[[float, float], float],
     singularity_func: Callable[[float, float], float],
+    slope,
     x0,
     y0,
 ) -> Tuple[float, float]:
-    """Draws a tangent line to the slope function at the point (x0, y0) and tries to find the closest intersection of this line with the singularity function.
+    """Draws passing through (x0, y0) with slope 'slope' and tries to find the closest intersection of this line with the singularity function.
 
     Args:
-        slope_func (Callable[[float, float], float]): Slope function y'(x) = f(x, y)
         singularity_func (Callable[[float, float], float]): Equation 0 = g(x, y) giving where the slope function has singularities
+        slope: slope of the line
         x0: initial x value
         y0: initial y value
 
@@ -92,7 +92,7 @@ def find_first_intersection(
     """
 
     def line(x):
-        return y0 + slope_func(x0, y0) * (x - x0)
+        return y0 + slope * (x - x0)
 
     func = lambda x: singularity_func(x, line(x))
     xguess = newtons_method(func, x0)
@@ -259,20 +259,17 @@ class SolutionTracer:
     def should_stop_if_y_out_of_bounds(self, y) -> bool:
         """This should be called when the y value is out of bounds. Returns True if the tracing should stop."""
 
-        if self.detection_strategy == TraceSettings.Strategy.None_:
+        if self.detection_strategy in [
+            TraceSettings.Strategy.None_,
+            TraceSettings.Strategy.Manual,
+        ]:
             return False
 
         # distance from edge of the screen
         dist = fabs(y - self.ylim[0]) if y < self.ylim[0] else fabs(y - self.ylim[1])
 
         # automatic detection --> cut off when further than screen_height * y_margin
-        if self.detection_strategy == TraceSettings.Strategy.Automatic:
-            return dist > (self.ylim[1] - self.ylim[0]) * self.settings.y_margin
-
-        # manual detection --> cut off when there might be a singularity nearby
-        # there is no need to cut off once a certain height is reached as in automatic detection
-        # because this i
-        return vector_length(self.sing_diff) < self.singularity_alert_distance
+        return dist > (self.ylim[1] - self.ylim[0]) * self.settings.y_margin
 
     def possible_singularity_at(self, x, y) -> bool:
         """Checks if there might a singularity close to the point (x, y)."""
@@ -293,9 +290,8 @@ class SolutionTracer:
         assert self.singularity_eq is not None
 
         try:
-            singularity_guess = find_first_intersection(
-                self.slope_func, self.singularity_eq, x, y
-            )
+            singularity = find_first_intersection(self.singularity_eq, self.slope, x, y)
+            diff = np.array([singularity[0] - x, singularity[1] - y])
         except:
             # newtons method probably failed --> no singularity close
             # but still set a valid sing_diff, it is used during the iteration
@@ -305,11 +301,18 @@ class SolutionTracer:
                 self.sing_diff = resize_vector_by_x(self.sing_diff, self.max_dx)
             return False
 
-        diff = np.array([x - singularity_guess[0], y - singularity_guess[1]])
+        diff = np.array([singularity[0] - x, singularity[1] - y])
         self.sing_diff = diff
 
         # if the singularity is close enough, return True
-        return vector_length(diff) < self.singularity_alert_distance
+        if vector_length(diff) < self.singularity_alert_distance:
+            return True
+
+        # very high slope --> the diff will probably be x=0 and y>>x
+        if fabs(self.slope) > 1e6 and fabs(diff[0]) < self.max_dx:
+            return True
+
+        return False
 
     def handle_singularity(self, x, y):
         """
@@ -320,7 +323,13 @@ class SolutionTracer:
         - INFINITE = an infinite singularity was detected, the line should go off screen
         """
 
-        assert self.detection_strategy != TraceSettings.Strategy.None_
+        # manual detection & if y is out of bounds --> STOP
+        if self.detection_strategy == TraceSettings.Strategy.Manual and (
+            y < self.ylim[0] or y > self.ylim[1]
+        ):
+            if fabs(self.slope_func(x, y)) > 1:
+                return self.Strategy.Infinite
+            return self.Strategy.Stop
 
         # calculate the first derivative at (x,y)
         # get vector in the direction of the slope: diff
@@ -338,19 +347,25 @@ class SolutionTracer:
                 diff = np.array([self.sing_dx, self.sing_dx * der]) * self.direction
 
             # manual detection --> use distance to singularity to determine size of diff
-            else:
+            elif self.detection_strategy == TraceSettings.Strategy.Manual:
                 # sing_diff = distance to singularity
-                diff = 2 * self.sing_diff  # jump to the other side
+                diff = self.sing_diff  # jump to the other side
                 # newton's method is not perfect, the sign might be wrong
                 if sign(diff[0]) != sign(self.vector[0]):
                     diff *= -1
                 # if the jump is too big, resize it
-                if fabs(diff[0]) > self.max_dx:
-                    diff = resize_vector_by_x(diff, self.max_dx)
+                if fabs(diff[0]) > self.sing_dx:
+                    diff = resize_vector_by_x(diff, self.sing_dx)
+                if vector_length(diff) > self.max_step:
+                    diff = resize_vector(diff, self.max_step)
                 # if the jump is too small, resize it
                 # prevents getting infinitely close to the singularity but never reaching it
                 if vector_length(diff) < self.min_step:
                     diff = resize_vector(diff, self.min_step)
+                diff = 2 * diff
+
+            else:
+                raise ValueError("Invalid detection strategy")  # should never happen
 
             # jump to the other side of the singularity (hopefully)
             nx, ny = x + diff[0], y + diff[1]
@@ -369,7 +384,6 @@ class SolutionTracer:
 
         # helper function to determine if the tracing can continue
         def can_continue():
-            # manual detection will deal with the singularity
             if self.detection_strategy == TraceSettings.Strategy.Manual:
                 return vector_length(self.sing_diff) > self.min_step
 
@@ -438,16 +452,59 @@ class SolutionTracer:
         assert direction in [self.Direction.Up, self.Direction.Down]
 
         point = np.array([x0, y0])
-        vector = np.array([0, direction]) * self.max_step
+        original_dist = vector_length(self.sing_diff)
+
+        def get_y_step(y):
+            if self.ylim[0] <= y <= self.ylim[1]:
+                step = self.max_step
+            else:
+                dist = fabs(y - self.ylim[0]) if y < self.ylim[0] else fabs(y - self.ylim[1])
+                step = max(dist / 100, self.max_step)
+            return step * direction
 
         while True:
             # if y out of bounds --> break
-            if point[1] < self.ylim[0] or point[1] > self.ylim[1]:
+            if (direction == self.Direction.Up and point[1] > self.ylim[1]) or (
+                direction == self.Direction.Down and point[1] < self.ylim[0]
+            ):
                 break
 
+            diff_to_next_point = np.array([0, get_y_step(point[1])])
+
+            # if manual --> calculate diff to singularity
+            if self.detection_strategy == TraceSettings.Strategy.Manual:
+                assert self.singularity_eq is not None
+                try:
+                    singularity = find_first_intersection(
+                        self.singularity_eq,
+                        self.slope_func(point[0], point[1]),
+                        point[0],
+                        point[1],
+                    )
+                except:
+                    break
+
+                diff = np.array([singularity[0] - point[0], singularity[1] - point[1]])
+
+                # if on screen
+                if self.ylim[0] <= point[1] <= self.ylim[1]:
+                    # if the point is getting far from the singularity --> STOP
+                    if vector_length(diff) > self.singularity_alert_distance:
+                        break
+                # if out of bounds
+                else:
+                    if vector_length(diff) > 10 * original_dist:
+                        break
+
+                # correct the x-position
+                diff_to_next_point += diff / 2
+
+            # calculate slope here and at the next point
             try:  # slope_func is unsafe
                 der = self.slope_func(point[0], point[1])
-                n_der = self.slope_func(point[0], point[1] + vector[1])
+                n_der = self.slope_func(
+                    point[0] + diff_to_next_point[0], point[1] + diff_to_next_point[1]
+                )
             except:
                 return point
 
@@ -455,7 +512,12 @@ class SolutionTracer:
             if sign(der) != sign(n_der):
                 break
 
-            point += vector
+            point += diff_to_next_point
+
+            # if by correcting position for MANUAL detection, the point got moved far from x0
+            # something is wrong --> STOP
+            if fabs(point[0] - x0) > self.max_dx:
+                break
 
         return point
 
@@ -475,7 +537,7 @@ class SolutionTracer:
         self.max_step = (
             self.diagonal_len / 10 ** self.settings.get_trace_max_step_granularity()
         )
-        self.singularity_alert_distance = self.diagonal_len / 100
+        self.singularity_alert_distance = self.max_step * 10
 
         # max_dx is the maximum step size in x direction
         self.max_dx = (
@@ -502,7 +564,7 @@ class SolutionTracer:
                 self.vector = resize_vector_by_x(self.vector, self.max_dx)
 
                 # if not out of bounds and the step is too big, resize it
-                # allow mig steps out of bounds to save time
+                # allow big steps out of bounds to save time
                 if (
                     self.ylim[0] <= point[1] <= self.ylim[1]
                     and vector_length(self.vector) > self.max_step
@@ -511,10 +573,10 @@ class SolutionTracer:
 
                 if self.detection_strategy == TraceSettings.Strategy.Manual:
                     # if the step would overshoot a possible singularity, resize it
-                    if fabs(self.vector[0]) >= fabs(self.sing_diff[0]):
-                        self.vector = resize_vector_by_x(
-                            self.vector, fabs(self.sing_diff[0]) / 2
-                        )
+                    if vector_length(self.vector) >= (
+                        l := 0.5 * vector_length(self.sing_diff)
+                    ):
+                        self.vector = resize_vector(self.vector, l)
 
             # singularity detected
             else:
@@ -523,14 +585,11 @@ class SolutionTracer:
 
                 # if tracing should stop
                 if strategy == self.Strategy.Stop:
-                    # if manual detection --> last point will end at the singularity
-                    if self.detection_strategy == TraceSettings.Strategy.Manual:
-                        point += resize_vector(self.vector, vector_length(self.sing_diff))
                     break
 
                 # if the function goes off to infinity
                 if strategy == self.Strategy.Infinite:
-                    # last line segment should go off screen
+                    # calculate last line segment
                     line_direction = sign(self.slope) * direction
                     point = self.get_last_point_on_line(point[0], point[1], line_direction)
                     break
@@ -539,8 +598,9 @@ class SolutionTracer:
                 if strategy == self.Strategy.Continue:
                     # manual detection
                     if self.detection_strategy == TraceSettings.Strategy.Manual:
-                        # step_size = distance to singularity / 2
-                        step_size = vector_length(self.sing_diff) / 4
+                        step_size = np.clip(
+                            vector_length(self.sing_diff) / 3, 0, self.max_step
+                        )
                         self.vector = resize_vector(self.vector, step_size)
                         # if the step is too big, resize it
                         if fabs(self.vector[0]) > self.max_dx:

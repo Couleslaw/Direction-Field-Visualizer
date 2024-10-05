@@ -145,6 +145,7 @@ class TraceSettingsDialog(QDialog):
         - singularity detection radio buttons
             - automatic: Y offscreen margin, singularity slope
             - manual: singularity equation
+            - none
         """
 
         # trace precision slider
@@ -292,8 +293,11 @@ screen heights the curve can go offscreen before it is cut off.
             """The equation that defines the singularities of the function.
 Examples:
     - y' = x/y  ⟶  y=0
-    - y' = cos(x)/sin(x)  ⟶  sin(x)=0
-    - y' = (x+y)/ln(abs(x))  ⟶  ln(abs(x))=0 or abs(x)-1=0"""
+    - y' = (x+y)/ln(abs(x))  ⟶  ln(abs(x))=0 or abs(x)-1=0
+    - y' = y*ln(x) ⟶  x=0
+    - y' = tan(x)  ⟶  cos(x)=0
+What if there are multiple singularities? Just multiply them together!
+    - y' = y/x + ln(sin(y)) ⟶ x*sin(y)=0"""
         )
         form.addWidget(self.equation_input)
         layout.addLayout(form)
