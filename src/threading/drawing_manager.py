@@ -54,28 +54,20 @@ class DrawingManager(QObject):
         self.plot.axes.add_collection(lc)
         self.plot.figure.canvas.draw()
 
-    def is_queue_empty(self):
-        """Safely checks if the queue is empty"""
-        self.queue_mutex.lock()
-        queue_empty = not self.curve_queue
-        self.queue_mutex.unlock()
-        return queue_empty
-
     def run(self):
         """Periodically draws the curves from the queue"""
         while self.running:
             # sleep for a while to avoid busy waiting
             self.thread().msleep(5)
 
-            # skip if the queue is empty
-            if self.is_queue_empty():
-                continue
-
-            # queue is not empty, draw the curves
+            # get a bunch of curves from the queue and draw them
             curves = []
             count = 0
-            while not self.is_queue_empty() and count < 10:
+            while count < 10:
                 self.queue_mutex.lock()
+                if not self.curve_queue:
+                    self.queue_mutex.unlock()
+                    break
                 curve = self.curve_queue.pop(0)
                 self.queue_mutex.unlock()
                 curves += curve
