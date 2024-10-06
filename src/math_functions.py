@@ -33,3 +33,8 @@ acot = lambda x: pi / 2 - atan(x)
 asec = lambda x: acos(1 / x)
 acsc = lambda x: asin(1 / x)
 sign = lambda x: int((x > 0)) - int((x < 0))
+
+
+def create_function_from_string(string):
+    """Receives a string that should be a mathematical function f(x,y) and returns a lambda function."""
+    return eval(f"lambda x, y: {string}")

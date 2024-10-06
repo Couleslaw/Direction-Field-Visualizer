@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QRadioButton,
 )
 
-from src.numerical_methods import TraceSettings
+from src.tracing.trace_settings import TraceSettings
 from src.default_constants import *
 
 
@@ -299,6 +299,7 @@ Examples:
 What if there are multiple singularities? Just multiply them together!
     - y' = y/x + ln(sin(y)) ⟶ x*sin(y)=0"""
         )
+        self.equation_input.setFocus()
         form.addWidget(self.equation_input)
         layout.addLayout(form)
 

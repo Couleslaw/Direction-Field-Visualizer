@@ -1,4 +1,3 @@
-from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
 from PyQt6.QtWidgets import QMessageBox
 from matplotlib import cm
@@ -9,20 +8,29 @@ np.seterr(divide="raise", invalid="ignore")
 
 from src.math_functions import *
 from src.default_constants import *
-from src.numerical_methods import TraceSettings, SolutionTracer, create_function_from_string
+from src.tracing.trace_settings import TraceSettings
+from src.tracing.solution_tracer import SolutionTracer
+
+from src.threading.parallel_tracer import ParallelTracer
+from src.threading.trace_manager import TraceManager
 
 
 class DirectionFieldBuilder:
     """Plots direction fields using the matplotlib library."""
 
     def __init__(self, plot, app):
+        self.plot = plot
+        self.app = app  # the MyApp object SCB is embedded in
+        self.trace_settings = TraceSettings()
+        self.trace_manager = TraceManager(
+            self.plot, self.trace_settings, self.app.enable_trace_settings_button
+        )
+
         self.press = None  # holds x, y of pressed point while moving, else None
         self.moving_canvas = False  # True if the canvas is being moved
         self.drawing_mouse_line = False
         self.last_mouse_line = None
         self.mouse_pos = None
-        self.plot = plot
-        self.app = app  # the MyApp object SCB is embedded in
 
         self.show_grid = False
         self.show_axes = True
@@ -38,10 +46,13 @@ class DirectionFieldBuilder:
         self.mouse_line_length = DEFAULT_MOUSE_LINE_LENGTH
         self.function = create_function_from_string(DEFAULT_FUNCTION)
         self.function_string = DEFAULT_FUNCTION
-        self.trace_settings = TraceSettings()
 
         self.motion_counter = 0
         self.arrows_cache = {}
+
+    def stop_all_threads(self):
+        """Stops all the threads."""
+        self.trace_manager.stop_all_threads()
 
     def connect(self):
         """Connect to all the events we need."""
@@ -262,6 +273,8 @@ class DirectionFieldBuilder:
         if not keep_cache:
             self.arrows_cache = {}
 
+        self.trace_manager.stop_tracing()
+
         xlim = self.plot.axes.get_xlim()  # save old lims
         ylim = self.plot.axes.get_ylim()
 
@@ -283,6 +296,8 @@ class DirectionFieldBuilder:
         f = lambda n, s: s * (n // s)
         xs = np.arange(f(xlim[0], x_step) - x_margin, xlim[1] + x_step + x_margin, x_step)
         ys = np.arange(f(ylim[0], y_step) - y_margin, ylim[1] + y_step + y_margin, y_step)
+
+        colors = None
         # try to get the arrows
         try:
             arrows = []
@@ -318,6 +333,7 @@ class DirectionFieldBuilder:
         arrow_width = 0.001 + 0.004 * (self.arrow_width - 1) / 9
 
         if len(arrows) == 4:
+            assert colors is not None
             self.plot.axes.quiver(
                 arrows[0],
                 arrows[1],
@@ -327,7 +343,7 @@ class DirectionFieldBuilder:
                 scale_units="xy",
                 scale=1,
                 width=arrow_width,
-                color=colors if self.indicate_colors else "black",
+                color=colors if colors is not None else "black",
                 cmap="hsv",
             )
 
@@ -358,20 +374,29 @@ class DirectionFieldBuilder:
             return
 
         x, y = self.press
-        ylim = self.plot.axes.get_ylim()
-        xlim = self.plot.axes.get_xlim()
 
-        # trace right and left from the center point
-        tracer = SolutionTracer(self.trace_settings, self.function_string, xlim, ylim)
-        right_line = tracer.trace(x, y, SolutionTracer.Direction.Right)
-        left_line = tracer.trace(x, y, SolutionTracer.Direction.Left)
+        # create the two tracers
+        right_tracer = ParallelTracer(
+            x,
+            y,
+            SolutionTracer.Direction.Right,
+            self.function_string,
+            self.trace_settings,
+            self.plot,
+        )
 
-        # draw the solution curve
-        line_width = self.trace_settings.get_line_width()
-        line_color = self.trace_settings.line_color
-        lc = LineCollection([left_line, right_line], color=line_color, linewidth=line_width)
-        self.plot.axes.add_collection(lc)
-        self.plot.figure.canvas.draw()
+        left_tracer = ParallelTracer(
+            x,
+            y,
+            SolutionTracer.Direction.Left,
+            self.function_string,
+            self.trace_settings,
+            self.plot,
+        )
+
+        self.trace_manager.update_settings(self.trace_settings)
+        self.trace_manager.start_new_tracer(right_tracer)
+        self.trace_manager.start_new_tracer(left_tracer)
 
     def remove_mouse_line_from_plot(self):
         """Tries to remove the direction line drawn at the mouse cursor location"""

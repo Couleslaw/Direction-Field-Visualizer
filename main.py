@@ -1,12 +1,8 @@
 import sys
 import os
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-)
-
-from src.gui.visualizer_app import VisualizerApp
+from PyQt6.QtWidgets import QApplication
+from src.gui.main_window import MainWindow
 
 
 def main():
@@ -31,9 +27,7 @@ def main():
     )
 
     # create the main window
-    myApp = VisualizerApp()
-    main_win = QMainWindow()
-    main_win.setCentralWidget(myApp)
+    main_win = MainWindow()
     main_win.setWindowIcon(QIcon(icon))
     main_win.show()
 

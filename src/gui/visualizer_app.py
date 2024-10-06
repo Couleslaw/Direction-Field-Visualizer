@@ -1,6 +1,5 @@
 import numpy as np
-from PyQt6.QtGui import QDesktopServices
-from PyQt6.QtCore import QUrl, Qt
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QWidget,
     QLabel,
@@ -33,7 +32,6 @@ class VisualizerApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setMinimumSize(900, 560)
-        self.setWindowTitle("Direction Field Visualizer")
 
         # call open_wiki function on F1 press
 
@@ -66,16 +64,9 @@ class VisualizerApp(QWidget):
         sidebar.setMaximumWidth(200)
         self.create_sidebar(sidebar_layout)
 
-    def keyPressEvent(self, event):
-        """Opens the user guide on F1 press."""
-        if event.key() == Qt.Key.Key_F1:
-            self.open_user_guide()
-
-    def open_user_guide(self):
-        """Opens the user guide in the default browser."""
-        QDesktopServices.openUrl(
-            QUrl("https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/User-Guide")
-        )
+    def stop_background_threads(self):
+        """Closes all threads."""
+        self.canvas.dfb.stop_all_threads()
 
     def create_bot_bar(self, layout):
         """
@@ -662,3 +653,7 @@ Shortcut: 'Ctrl+T'"""
             self.canvas.dfb.draw_mouse_line()
         else:
             self.canvas.dfb.remove_mouse_line_from_plot()
+
+    def enable_trace_settings_button(self, enabled):
+        """Enables or disables the trace settings button."""
+        self.trace_settings_button.setEnabled(enabled)

@@ -10,7 +10,7 @@ DEFAULT_TRACE_COLOR = "red"
 
 # how many screens worth of space will be used to trace if the
 # function goes out of the screen on Y axis before its cut off
-DEFAULT_TRACE_Y_MARGIN = 20
+DEFAULT_TRACE_Y_MARGIN = 20.0
 MAX_TRACE_Y_MARGIN = 1000
 
 # dx = (xlim[1]-xlim[0]) / 10^Granulity
@@ -19,11 +19,15 @@ MAX_TRACE_DX_GRANULARITY = 6
 
 # min_step = diagonal / 10^Granulity
 MIN_TRACE_MIN_STEP_GRANULARITY = 4
-MAX_TRACE_MIN_STEP_GRANULARITY = 10
+MAX_TRACE_MIN_STEP_GRANULARITY = 9
 
 # max_step = diagonal / 10^Granulity
 MIN_TRACE_MAX_STEP_GRANULARITY = 2
 MAX_TRACE_MAX_STEP_GRANULARITY = 6
+
+# singularity_alert_dist = diagonal / 10^Granulity
+MIN_SINGULARITY_ALERT_DIST_GRANULARITY = 1.5
+MAX_SINGULARITY_ALERT_DIST_GRANULARITY = 4
 
 # granularity is linearly interpolated from precision
 MIN_TRACE_PRECISION = 1

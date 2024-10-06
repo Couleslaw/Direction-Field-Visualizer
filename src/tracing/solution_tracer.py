@@ -1,32 +1,16 @@
-from typing import Callable, Tuple
+from typing import Tuple, Iterator
 import numpy as np
 
 
 from src.math_functions import *
 from src.default_constants import (
     TRACE_NUM_SEGMENTS_IN_DIAGONAL,
-    DEFAULT_TRACE_COLOR,
-    DEFAULT_TRACE_LINES_WIDTH,
-    MIN_TRACE_LINES_WIDTH,
-    MAX_TRACE_LINES_WIDTH,
-    DEFAULT_TRACE_Y_MARGIN,
-    DEFAULT_TRACE_PRECISION,
-    DEFAULT_SINGULARITY_MIN_SLOPE,
-    MIN_TRACE_DX_GRANULARITY,
-    MAX_TRACE_DX_GRANULARITY,
-    MIN_TRACE_MIN_STEP_GRANULARITY,
-    MAX_TRACE_MIN_STEP_GRANULARITY,
-    MIN_TRACE_MAX_STEP_GRANULARITY,
-    MAX_TRACE_MAX_STEP_GRANULARITY,
-    MAX_TRACE_PRECISION,
-    MIN_TRACE_PRECISION,
 )
 
 
-def create_function_from_string(string):
-    """Receives a string that should be a mathematical function f(x,y) and returns a lambda function."""
-    return eval(f"lambda x, y: {string}")
-
+from src.math_functions import create_function_from_string
+from src.tracing.numerical_methods import find_first_intersection
+from src.tracing.trace_settings import TraceSettings
 
 # helper functions for working with vectors
 
@@ -47,158 +31,6 @@ def round_if_close_to_zero(x, epsilon=1e-9):
     if fabs(x) < epsilon:
         return 0
     return x
-
-
-def newtons_method(function: Callable[[float], float], x0, precision=1e-4):
-    """Newton's method for finding roots of a function."""
-
-    def relative_error(xnew, xlast):
-        return fabs((xnew - xlast) / xnew)
-
-    def derivative(function: Callable[[float], float], x) -> float:
-        dx = 1e-12
-        return (function(x + dx) - function(x)) / dx
-
-    xlast = x0
-    i = 0
-    while True:
-        xnew = xlast - function(xlast) / derivative(function, xlast)
-        if xnew == 0:
-            return xnew
-        error = relative_error(xnew, xlast)
-        xlast = xnew
-        i = i + 1
-        if error < precision or i > 20:
-            break
-    return xlast
-
-
-def find_first_intersection(
-    singularity_func: Callable[[float, float], float],
-    slope,
-    x0,
-    y0,
-) -> Tuple[float, float]:
-    """Draws passing through (x0, y0) with slope 'slope' and tries to find the closest intersection of this line with the singularity function.
-
-    Args:
-        singularity_func (Callable[[float, float], float]): Equation 0 = g(x, y) giving where the slope function has singularities
-        slope: slope of the line
-        x0: initial x value
-        y0: initial y value
-
-    Returns:
-        Tuple[float, float]: (x, y) of the intersection point
-    """
-
-    def line(x):
-        return y0 + slope * (x - x0)
-
-    func = lambda x: singularity_func(x, line(x))
-    xguess = newtons_method(func, x0)
-    return (xguess, line(xguess))
-
-
-class TraceSettings:
-    """Class for storing settings for tracing a solutions of given differential equation."""
-
-    class Strategy:
-        Automatic = 0
-        Manual = 1
-        None_ = 2
-
-    def __init__(self):
-        self.line_color = DEFAULT_TRACE_COLOR
-        self.line_width = DEFAULT_TRACE_LINES_WIDTH
-        self.y_margin = DEFAULT_TRACE_Y_MARGIN
-        self.trace_precision = DEFAULT_TRACE_PRECISION
-        self.singularity_min_slope = DEFAULT_SINGULARITY_MIN_SLOPE
-        self.show_advanced_settings = False
-        # slope function string -> singularity equation string
-        self.singularity_equations = {"x/y": "y"}
-        self.preferred_detection = dict()  # slope function string -> detection strategy
-
-    def copy(self):
-        """Returns a copy if itself"""
-        new = TraceSettings()
-        new.line_color = self.line_color
-        new.line_width = self.line_width
-        new.y_margin = self.y_margin
-        new.trace_precision = self.trace_precision
-        new.singularity_min_slope = self.singularity_min_slope
-        new.show_advanced_settings = self.show_advanced_settings
-        new.singularity_equations = self.singularity_equations.copy()
-        new.preferred_detection = self.preferred_detection.copy()
-        return new
-
-    def has_singularity_for(self, equation: str):
-        """Returns True if there is a singularity equation for the given equation."""
-        return equation in self.singularity_equations
-
-    def set_preferred_detection_for(self, slope_func: str, detection: int):
-        assert detection in [
-            self.Strategy.Automatic,
-            self.Strategy.Manual,
-            self.Strategy.None_,
-        ]
-        self.preferred_detection[slope_func] = detection
-
-    def get_preferred_detection_for(self, slope_func: str):
-        return self.preferred_detection.get(slope_func, self.Strategy.Automatic)
-
-    def get_trace_dx_granularity(self):
-        """Converts trace precision to granularity, which is then used to calculate dx."""
-        return MIN_TRACE_DX_GRANULARITY + (
-            MAX_TRACE_DX_GRANULARITY - MIN_TRACE_DX_GRANULARITY
-        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
-            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
-        )
-
-    def get_trace_min_step_granularity(self):
-        """Converts trace precision to granularity, which is then used to calculate min_step."""
-        return MIN_TRACE_MIN_STEP_GRANULARITY + (
-            MAX_TRACE_MIN_STEP_GRANULARITY - MIN_TRACE_MIN_STEP_GRANULARITY
-        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
-            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
-        )
-
-    def get_trace_max_step_granularity(self):
-        """Converts trace precision to granularity, which is then used to calculate max_step."""
-        return MIN_TRACE_MAX_STEP_GRANULARITY + (
-            MAX_TRACE_MAX_STEP_GRANULARITY - MIN_TRACE_MAX_STEP_GRANULARITY
-        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
-            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
-        )
-
-    def get_line_width(self):
-        """Converts line width entered by the user to a value that is then actually used."""
-        # mapping min->1, max->7
-        return 1 + 6 * (self.line_width - MIN_TRACE_LINES_WIDTH) / (
-            MAX_TRACE_LINES_WIDTH - MIN_TRACE_LINES_WIDTH
-        )
-
-    def set_new_singularity_equation(self, slope_func, equation_str, xlim, ylim) -> bool:
-        """Checks if the equation is valid and sets it if it is. Returns True if the equation is valid."""
-
-        try:
-            func = create_function_from_string(equation_str)
-            # try to evaluate the equation at a few random points
-            for _ in range(20):
-                try:
-                    x = np.random.uniform(xlim[0], xlim[1])
-                    y = np.random.uniform(ylim[0], ylim[1])
-                    func(x, y)
-                except ZeroDivisionError:  # can be a singularity
-                    pass
-                except ValueError:  # it might not be defined everywhere
-                    pass
-        except:
-            # the equation is not valid
-            return False
-
-        # the equation seems valid --> accept
-        self.singularity_equations[slope_func] = equation_str
-        return True
 
 
 class SolutionTracer:
@@ -309,7 +141,11 @@ class SolutionTracer:
             return True
 
         # very high slope --> the diff will probably be x=0 and y>>x
-        if fabs(self.slope) > 1e6 and fabs(diff[0]) < self.max_dx:
+        if (
+            not (self.ylim[0] <= y <= self.ylim[1])
+            and fabs(self.slope) > 1e10
+            and fabs(diff[0]) < self.max_dx
+        ):
             return True
 
         return False
@@ -349,8 +185,13 @@ class SolutionTracer:
             # manual detection --> use distance to singularity to determine size of diff
             elif self.detection_strategy == TraceSettings.Strategy.Manual:
                 # sing_diff = distance to singularity
-                diff = self.sing_diff  # jump to the other side
-                # newton's method is not perfect, the sign might be wrong
+                # jump to the other side
+                if vector_length(self.sing_diff) > self.min_step:
+                    diff = self.sing_diff
+                else:
+                    diff = resize_vector(np.array([1, der]), self.min_step)
+
+                # correct the direction
                 if sign(diff[0]) != sign(self.vector[0]):
                     diff *= -1
                 # if the jump is too big, resize it
@@ -358,10 +199,6 @@ class SolutionTracer:
                     diff = resize_vector_by_x(diff, self.sing_dx)
                 if vector_length(diff) > self.max_step:
                     diff = resize_vector(diff, self.max_step)
-                # if the jump is too small, resize it
-                # prevents getting infinitely close to the singularity but never reaching it
-                if vector_length(diff) < self.min_step:
-                    diff = resize_vector(diff, self.min_step)
                 diff = 2 * diff
 
             else:
@@ -441,9 +278,32 @@ class SolutionTracer:
             if n_der2 < 0 and n_der < 0:  # concave down
                 return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
 
-        return self.Strategy.Continue if can_continue() else self.Strategy.Stop
+        return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
 
-    def get_last_point_on_line(self, x0, y0, direction):
+    def should_yield_point(
+        self, point, current_line_segment_length, line_segment_start
+    ) -> bool:
+        """Determines if a new point should be yielded based on the point position and the current line segment."""
+        start_in_screen = self.ylim[0] < line_segment_start[1] < self.ylim[1]
+        end_in_screen = self.ylim[0] < point[1] < self.ylim[1]
+
+        if start_in_screen and end_in_screen:
+            return current_line_segment_length > self.max_line_segment_length
+        elif (start_in_screen and not end_in_screen) or (
+            not start_in_screen and end_in_screen
+        ):
+            return True
+
+        # start and end are out of screen
+        dist = (
+            fabs(point[1] - self.ylim[0])
+            if point[1] < self.ylim[0]
+            else fabs(point[1] - self.ylim[1])
+        )
+        length_needed = max(dist / 2, self.max_line_segment_length)
+        return current_line_segment_length > length_needed
+
+    def create_infinite_line(self, x0, y0, direction) -> Iterator[Tuple[float, float]]:
         """
         Goes off to infinity (and possibly stops) from (x0, y0) in the given direction.
         This can be either an INFINITE or a STOP singularity.
@@ -453,6 +313,9 @@ class SolutionTracer:
 
         point = np.array([x0, y0])
         original_dist = vector_length(self.sing_diff)
+
+        current_line_segment_length = 0
+        line_segment_start = point.copy()
 
         def get_y_step(y):
             if self.ylim[0] <= y <= self.ylim[1]:
@@ -489,7 +352,7 @@ class SolutionTracer:
                 # if on screen
                 if self.ylim[0] <= point[1] <= self.ylim[1]:
                     # if the point is getting far from the singularity --> STOP
-                    if vector_length(diff) > self.singularity_alert_distance:
+                    if vector_length(diff) > self.diagonal_len / 100:
                         break
                 # if out of bounds
                 else:
@@ -506,7 +369,7 @@ class SolutionTracer:
                     point[0] + diff_to_next_point[0], point[1] + diff_to_next_point[1]
                 )
             except:
-                return point
+                break
 
             # if the slope changes sign --> STOP
             if sign(der) != sign(n_der):
@@ -516,18 +379,24 @@ class SolutionTracer:
 
             # if by correcting position for MANUAL detection, the point got moved far from x0
             # something is wrong --> STOP
-            if fabs(point[0] - x0) > self.max_dx:
+            if fabs(point[0] - x0) > (self.xlim[1] - self.xlim[0]) / 50:
                 break
 
-        return point
+            current_line_segment_length += vector_length(diff_to_next_point)
+            if self.should_yield_point(point, current_line_segment_length, line_segment_start):
+                yield (x0, point[1])
+                line_segment_start = point.copy()
+                current_line_segment_length = 0
 
-    def trace(self, x0, y0, direction) -> list[Tuple[float, float]]:
+        yield (x0, point[1])
+
+    def trace(self, x0, y0, direction) -> Iterator[Tuple[float, float]]:
         """
         Traces a solution curve starting at (x0, y0) in the given direction.
-        Returns a list of points that are on the curve.
+        yields points that are on the curve until it reaches a singularity or goes off screen.
         """
+        yield (x0, y0)
         self.direction = direction
-        line = [(x0, y0)]
         point = np.array([x0, y0])  # current point
 
         # manual detection
@@ -537,12 +406,13 @@ class SolutionTracer:
         self.max_step = (
             self.diagonal_len / 10 ** self.settings.get_trace_max_step_granularity()
         )
-        self.singularity_alert_distance = self.max_step * 10
+        self.singularity_alert_distance = (
+            self.diagonal_len / 10 ** self.settings.get_singularity_alert_dist_granularity()
+        )
 
         # max_dx is the maximum step size in x direction
-        self.max_dx = (
-            self.xlim[1] - self.xlim[0]
-        ) / 10 ** self.settings.get_trace_dx_granularity()
+        x_diff = self.xlim[1] - self.xlim[0]
+        self.max_dx = (x_diff) / 10 ** self.settings.get_trace_dx_granularity()
         # sing_dx is the step size used when a singularity is detected in auto-detection mode
         self.sing_dx = min(1e-6, self.max_dx / 1000)
 
@@ -550,6 +420,7 @@ class SolutionTracer:
         # is used in auto-detection mode
         continue_count = 0
         current_line_segment_length = 0  # for adding new points
+        line_segment_start = point.copy()
 
         while True:
             try:  # slope_func is unsafe
@@ -591,8 +462,8 @@ class SolutionTracer:
                 if strategy == self.Strategy.Infinite:
                     # calculate last line segment
                     line_direction = sign(self.slope) * direction
-                    point = self.get_last_point_on_line(point[0], point[1], line_direction)
-                    break
+                    yield from self.create_infinite_line(point[0], point[1], line_direction)
+                    return
 
                 # if the tracing should continue
                 if strategy == self.Strategy.Continue:
@@ -636,12 +507,13 @@ class SolutionTracer:
                 if self.should_stop_if_y_out_of_bounds(point[1]):
                     break
 
-            # add a new point if the segment has reached the desired length
+            # yield a new point if the segment has reached the desired length
             current_line_segment_length += vector_length(self.vector)
-            if current_line_segment_length > self.max_line_segment_length:
-                line.append((point[0], point[1]))
+
+            if self.should_yield_point(point, current_line_segment_length, line_segment_start):
+                yield (point[0], point[1])
+                line_segment_start = point.copy()
                 current_line_segment_length = 0
 
-        # add the last point
-        line.append((point[0], point[1]))
-        return line
+        # yield the last point
+        yield (point[0], point[1])

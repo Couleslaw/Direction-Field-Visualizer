@@ -3,7 +3,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from src.direction_field_builder import DirectionFieldBuilder
 from src.default_constants import DEFAULT_XMIN, DEFAULT_XMAX, DEFAULT_YMIN, DEFAULT_YMAX
-from src.numerical_methods import create_function_from_string
+from src.math_functions import create_function_from_string
 
 
 class Canvas(FigureCanvas):
@@ -23,7 +23,10 @@ class Canvas(FigureCanvas):
         self.ax.axvline(0, color="r", linewidth=1)
         self.ax.axhline(0, color="r", linewidth=1)
         (plot,) = self.ax.plot([0], [0])
-        self.dfb = DirectionFieldBuilder(plot, self.parent)
+        self.dfb = DirectionFieldBuilder(
+            plot,
+            self.parent,
+        )
         self.dfb.connect()
 
     def get_xlim(self):
