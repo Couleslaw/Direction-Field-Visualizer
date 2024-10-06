@@ -66,7 +66,7 @@ class VisualizerApp(QWidget):
 
     def stop_background_threads(self):
         """Closes all threads."""
-        self.canvas.dfb.stop_all_threads()
+        self.canvas.manager.stop_all_threads()
 
     def create_bot_bar(self, layout):
         """
@@ -439,13 +439,9 @@ Shortcut: 'Ctrl+T'"""
             self.canvas.figure.savefig(file_name, bbox_inches="tight")
 
     def execute_graph_function(self):
-        """Executes the function given in the function input line."""
+        """Plots the function given in the function input line."""
 
-        # if the function is the same as the last one, don't do anything
         func_str = self.function_input.text()
-        if self.canvas.dfb.function_string == func_str:
-            return
-
         if not self.canvas.set_new_function(func_str):
             QMessageBox.critical(self, "Error", f"Invalid function.")
 
@@ -458,11 +454,10 @@ Shortcut: 'Ctrl+T'"""
         else:
             self.canvas.set_auto_axes()
             self.enable_input_lines(True)
-            self.update_xmin()  # set pre-equal_axes lims
+            self.update_xmin()
             self.update_xmax()
             self.update_ymin()
             self.update_ymax()
-        self.canvas.redraw()
 
     def enable_input_lines(self, enabled):
         """Enables or disables all of the input lines for x and y limits."""
@@ -473,7 +468,7 @@ Shortcut: 'Ctrl+T'"""
 
     def checked_color(self, checked):
         """Turns color on and off."""
-        self.canvas.set_is_colored(checked)
+        self.canvas.set_show_field_colors(checked)
 
     def changed_color_contrast(self):
         """Updates the color contrast according to the slider."""
@@ -521,22 +516,22 @@ Shortcut: 'Ctrl+T'"""
                     continue_messagebox.exec()
                     if continue_messagebox.result() == QMessageBox.StandardButton.No:
                         return
-                self.canvas.dfb.trace_from_point(x, y)
+                self.canvas.manager.trace_from_point(x, y)
             except Exception:
                 QMessageBox.critical(self, "Error", f"Invalid coordinates.")
 
     def show_trace_settings_dialog(self):
         """Opens a dialog to set the trace settings."""
-        new_settings = self.canvas.dfb.trace_settings.copy()
+        new_settings = self.canvas.manager.trace_settings.copy()
         dialog = TraceSettingsDialog(
             self,
             new_settings,
-            self.canvas.dfb.function_string,
+            self.canvas.manager.field_settings.function_string,
             self.canvas.get_xlim(),
             self.canvas.get_ylim(),
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.canvas.dfb.trace_settings = new_settings
+            self.canvas.manager.trace_settings = new_settings
 
     def update_xmin(self):
         """Updates xmin according to the xmin input line."""
@@ -608,7 +603,6 @@ Shortcut: 'Ctrl+T'"""
             num_arrows = 1
             self.num_arrows_input.setText(str(num_arrows))
         self.canvas.set_num_arrows(num_arrows)
-        self.canvas.redraw()
 
     def add_more_arrows(self):
         """Adds 5 arrows."""
@@ -623,36 +617,28 @@ Shortcut: 'Ctrl+T'"""
         arrow_length = self.slider_a.value()
         self.label_a.setText(f"  &Arrow length: {arrow_length}")
         self.canvas.set_arrow_length(arrow_length)
-        self.canvas.redraw()
 
     def changed_arrow_width(self):
         """Updates the arrow width according to the slider."""
         arrow_width = self.slider_aw.value()
         self.label_aw.setText(f"  &Arrow width: {arrow_width}")
         self.canvas.set_arrow_width(arrow_width)
-        self.canvas.redraw()
 
     def changed_mouse_line_width(self):
         """Updates the mouse line width according to the slider."""
         width = self.slider_mw.value()
         self.label_mw.setText(f"  &Mouse line width: {width}")
         self.canvas.set_mouse_line_width(width)
-        self.canvas.dfb.draw_mouse_line()
 
     def changed_mouse_line_length(self):
         """Updates the mouse line length according to the slider."""
         length = self.slider_ml.value()
         self.label_ml.setText(f"  &Mouse line length: {length}")
         self.canvas.set_mouse_line_length(length)
-        self.canvas.dfb.draw_mouse_line()
 
-    def checked_mouseLine(self):
+    def checked_mouseLine(self, checked):
         """Turns the mouse line on and off."""
-        self.canvas.dfb.drawing_mouse_line = not self.canvas.dfb.drawing_mouse_line
-        if self.mouseLine.isChecked():
-            self.canvas.dfb.draw_mouse_line()
-        else:
-            self.canvas.dfb.remove_mouse_line_from_plot()
+        self.canvas.set_drawing_mouse_line(checked)
 
     def enable_trace_settings_button(self, enabled):
         """Enables or disables the trace settings button."""
