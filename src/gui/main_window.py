@@ -12,6 +12,8 @@ class MainWindow(QMainWindow):
 
         self.app = VisualizerApp()
         self.setCentralWidget(self.app)
+        self.setMinimumSize(928, 580)
+        self.resize(1024, 640)
 
         self.style_settings = StyleSettings()
 

@@ -32,7 +32,6 @@ class VisualizerApp(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setMinimumSize(900, 560)
 
         # call open_wiki function on F1 press
 
@@ -272,13 +271,14 @@ Shortcut: 'Ctrl+T'"""
         self.slider_a.setMinimum(MIN_ARROW_LENGTH)
         self.slider_a.setMaximum(MAX_ARROW_LENGTH)
         self.slider_a.setValue(DEFAULT_ARROW_LENGTH)
-        self.slider_a.setMinimumWidth(150)
+        self.slider_a.setMinimumSize(150, 10)
         self.slider_a.setTickInterval(2)
         self.slider_a.setSingleStep(1)
         self.slider_a.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_a.valueChanged.connect(self.changed_arrow_length)
         self.label_a = QLabel()
         self.label_a.setText(f"  &Arrow length: {DEFAULT_ARROW_LENGTH}   ")
+        self.label_a.setMinimumHeight(15)
         self.label_a.setBuddy(
             self.slider_a
         )  # changes focus to the slider if 'Alt+a' is pressed
@@ -292,12 +292,13 @@ Shortcut: 'Ctrl+T'"""
         self.slider_aw.setMinimum(MIN_ARROW_WIDTH)
         self.slider_aw.setMaximum(MAX_ARROW_WIDTH)
         self.slider_aw.setValue(DEFAULT_ARROW_WIDTH)
-        self.slider_aw.setMinimumWidth(150)
+        self.slider_aw.setMinimumSize(150, 10)
         self.slider_aw.setTickInterval(2)
         self.slider_aw.setSingleStep(1)
         self.slider_aw.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_aw.valueChanged.connect(self.changed_arrow_width)
         self.label_aw = QLabel()
+        self.label_aw.setMinimumHeight(15)
         self.label_aw.setText(f"  &Arrow width: {DEFAULT_ARROW_WIDTH}   ")
         self.label_aw.setBuddy(
             self.slider_aw
@@ -320,7 +321,7 @@ Shortcut: 'Ctrl+T'"""
         # create the 'Color by curvature' checkbox
         self.colors = QCheckBox("&Color by curvature")
         self.colors.setToolTip(
-            "Toggle on to color the arrows according to the curvature of the function."
+            "Toggle on to color the arrows according to the curvature of the function.\nShortcut: 'Ctrl+C'"
         )
         self.colors.setChecked(True)
         self.colors.setShortcut("Ctrl+C")
@@ -332,12 +333,13 @@ Shortcut: 'Ctrl+T'"""
         self.slider_c.setMinimum(MIN_COLOR_CONTRAST)
         self.slider_c.setMaximum(MAX_COLOR_CONTRAST)
         self.slider_c.setValue(DEFAULT_COLOR_CONTRAST)
-        self.slider_c.setMinimumWidth(150)
+        self.slider_c.setMinimumSize(150, 10)
         self.slider_c.setTickInterval(1)
         self.slider_c.setSingleStep(1)
         self.slider_c.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_c.valueChanged.connect(self.changed_color_contrast)
         self.label_c = QLabel()
+        self.label_c.setMinimumHeight(15)
         self.label_c.setToolTip(
             "Lower contrast means that even small differences in curvature will be visible."
         )
@@ -355,12 +357,13 @@ Shortcut: 'Ctrl+T'"""
         self.slider_cp.setMinimum(MIN_COLOR_PRECISION)
         self.slider_cp.setMaximum(MAX_COLOR_PRECISION)
         self.slider_cp.setValue(DEFAULT_COLOR_PRECISION)
-        self.slider_cp.setMinimumWidth(150)
+        self.slider_cp.setMinimumSize(150, 10)
         self.slider_cp.setTickInterval(1)
         self.slider_cp.setSingleStep(1)
         self.slider_cp.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_cp.valueChanged.connect(self.updated_color_precision)
         self.label_cp = QLabel()
+        self.label_cp.setMinimumHeight(15)
         self.label_cp.setToolTip(
             "Determines the dx used for calculating curvature. See the <b>User Guide</b> (press <b>F1</b>) for more information."
         )
@@ -405,12 +408,13 @@ Shortcut: 'Ctrl+T'"""
         self.slider_ml.setMinimum(MIN_MOUSE_LINE_LENGTH)
         self.slider_ml.setMaximum(MAX_MOUSE_LINE_LENGTH)
         self.slider_ml.setValue(DEFAULT_MOUSE_LINE_LENGTH)
-        self.slider_ml.setMinimumWidth(150)
+        self.slider_ml.setMinimumSize(150, 10)
         self.slider_ml.setTickInterval(1)
         self.slider_ml.setSingleStep(1)
         self.slider_ml.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_ml.valueChanged.connect(self.changed_mouse_line_length)
         self.label_ml = QLabel()
+        self.label_ml.setMinimumHeight(15)
         self.label_ml.setText(f"  &Mouse line length: {DEFAULT_MOUSE_LINE_LENGTH}   ")
         self.label_ml.setBuddy(
             self.slider_ml
@@ -425,12 +429,13 @@ Shortcut: 'Ctrl+T'"""
         self.slider_mw.setMinimum(MIN_MOUSE_LINE_WIDTH)
         self.slider_mw.setMaximum(MAX_MOUSE_LINE_WIDTH)
         self.slider_mw.setValue(DEFAULT_MOUSE_LINE_WIDTH)
-        self.slider_mw.setMinimumWidth(150)
+        self.slider_mw.setMinimumSize(150, 10)
         self.slider_mw.setTickInterval(1)
         self.slider_mw.setSingleStep(1)
         self.slider_mw.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_mw.valueChanged.connect(self.changed_mouse_line_width)
         self.label_mw = QLabel()
+        self.label_mw.setMinimumHeight(15)
         self.label_mw.setText(f"  &Mouse line width: {DEFAULT_MOUSE_LINE_WIDTH}   ")
         self.label_mw.setBuddy(
             self.slider_mw
