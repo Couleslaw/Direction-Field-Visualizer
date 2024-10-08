@@ -2,6 +2,7 @@ from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QMainWindow, QMessageBox
 from src.gui.visualizer_app import VisualizerApp
+from src.gui.app_style import StyleWindow, StyleSettings
 
 
 class MainWindow(QMainWindow):
@@ -12,8 +13,11 @@ class MainWindow(QMainWindow):
         self.app = VisualizerApp()
         self.setCentralWidget(self.app)
 
+        self.style_settings = StyleSettings()
+
     def closeEvent(self, event):
         """Closes the application."""
+
         reply = QMessageBox.question(
             self,
             "Message",
@@ -31,8 +35,16 @@ class MainWindow(QMainWindow):
         if event.key() == Qt.Key.Key_F1:
             self.open_user_guide()
 
+        if event.key() == Qt.Key.Key_F2:
+            self.open_style_window()
+
     def open_user_guide(self):
         """Opens the user guide in the default browser."""
         QDesktopServices.openUrl(
             QUrl("https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/User-Guide")
         )
+
+    def open_style_window(self):
+        """Opens the style window."""
+        style_window = StyleWindow(self.style_settings, self)
+        style_window.exec()

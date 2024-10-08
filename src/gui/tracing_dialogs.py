@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QSlider,
     QLineEdit,
     QMessageBox,
-    QSizePolicy,
     QDialog,
     QDialogButtonBox,
     QColorDialog,

@@ -188,12 +188,12 @@ class CanvasManager:
         if not keep_cache:
             self.field_builder.arrows_cache = {}
 
-        res = self.field_builder.get_arrows()
-        if res == None:
+        result = self.field_builder.get_arrows()
+        if result == None:
             QMessageBox.critical(self.app, "Error", f"Invalid function.")
             return
 
-        arrows, arrow_centers = res
+        arrows, arrow_centers = result
         if len(arrows) == 0:
             return
 

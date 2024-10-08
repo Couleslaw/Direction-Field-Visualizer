@@ -304,11 +304,12 @@ Shortcut: 'Ctrl+T'"""
         color_group.setLayout(color_layout)
 
         # create the 'Color by curvature' checkbox
-        self.colors = QCheckBox("Color by curvature")
+        self.colors = QCheckBox("&Color by curvature")
         self.colors.setToolTip(
             "Toggle on to color the arrows according to the curvature of the function."
         )
         self.colors.setChecked(True)
+        self.colors.setShortcut("Ctrl+C")
         self.colors.stateChanged.connect(self.checked_color)
         color_layout.addWidget(self.colors)
 
@@ -376,13 +377,13 @@ Shortcut: 'Ctrl+T'"""
         mouse_line_group.setLayout(mouse_line_layout)
 
         # create the 'Mouse line' checkbox
-        self.mouseLine = QCheckBox("Mouse line")
+        self.mouseLine = QCheckBox("&Mouse line")
         self.mouseLine.setToolTip(
             "Draw a tangent line at the position of the mouse cursor.\nShortcut: 'Ctrl+M'"
         )
         self.mouseLine.stateChanged.connect(self.checked_mouseLine)
         self.mouseLine.setChecked(False)
-        self.mouseLine.setShortcut("Ctrl+&M")
+        self.mouseLine.setShortcut("Ctrl+M")
         mouse_line_layout.addWidget(self.mouseLine)
 
         # create the 'Mouse line length' slider
