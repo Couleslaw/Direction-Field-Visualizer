@@ -10,7 +10,7 @@ DEFAULT_TRACE_COLOR = "red"
 
 # how many screens worth of space will be used to trace if the
 # function goes out of the screen on Y axis before its cut off
-DEFAULT_TRACE_Y_MARGIN = 20.0
+DEFAULT_TRACE_Y_MARGIN = 20
 MAX_TRACE_Y_MARGIN = 1000
 
 # dx = (xlim[1]-xlim[0]) / 10^Granulity

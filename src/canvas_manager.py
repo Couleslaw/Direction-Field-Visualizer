@@ -154,20 +154,26 @@ class CanvasManager:
         self.app.update_displayed_lims()
         self.draw_field()
 
-    def set_new_function(self, new_function: str) -> bool:
+    def set_new_function(self, new_function_str: str) -> bool:
         """
         Checks if the new slope-function is valid and sets it if it is.
         Returns True if the function is valid, False otherwise.
         """
 
-        if new_function == self.field_settings.function_string:
+        if new_function_str == self.field_settings.function_string:
             return True
+
+        # check if the new function is syntactically correct
+        try:
+            new_function = create_function_from_string(new_function_str)
+        except SyntaxError:
+            return False
 
         # save the previous function in case the new one is invalid
         previous_function = self.field_settings.function
 
         # set new function and redraw the plot
-        self.field_settings.function = create_function_from_string(new_function)
+        self.field_settings.function = new_function
         builder = DirectionFieldBuilder(self.plot, self.field_settings)
         arrows = builder.get_arrows()
 
@@ -177,7 +183,7 @@ class CanvasManager:
             return False
 
         # if the function is valid, update the function string
-        self.field_settings.function_string = new_function
+        self.field_settings.function_string = new_function_str
         return True
 
     def draw_field(self, keep_cache=False):

@@ -17,6 +17,7 @@ from math import (
     log2,
     log10,
     sqrt,
+    pow,
     fabs,
     floor,
     ceil,
