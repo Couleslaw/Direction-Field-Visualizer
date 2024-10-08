@@ -126,5 +126,5 @@ ROUND_INPUT_LINES = 5
 
 
 # zoom
-ZOOM = 2
+ZOOM = 1.5
 MAX_ZOOM = 1e-3

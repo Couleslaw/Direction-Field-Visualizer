@@ -130,24 +130,36 @@ class CanvasManager:
         if event.inaxes != self.plot.axes:
             return
 
+        zoom_in = event.button == "up"
+        self.zoom(zoom_in, event.xdata, event.ydata)
+
+    def zoom(self, zoom_in: bool, x=None, y=None):
+        """
+        Zooms in or out based on the zoom_in parameter by scaling the x and y lims accordingly.
+        If x and y are None, zooms to the center of the plot. Else zooms to the point (x, y).
+        """
         margin = (ZOOM - 1) / 2  # how much to add on both sides
         (xmin, xmax), (ymin, ymax) = self.plot.axes.get_xlim(), self.plot.axes.get_ylim()
+
+        if x is None or y is None:
+            x, y = (xmin + xmax) / 2, (ymin + ymax) / 2
+
         xleft, xright, ydown, yup = (
-            event.xdata - xmin,
-            xmax - event.xdata,
-            event.ydata - ymin,
-            ymax - event.ydata,
+            x - xmin,
+            xmax - x,
+            y - ymin,
+            ymax - y,
         )
 
-        if event.button == "down":  # zoom out
-            xlim = (xmin - margin * xleft, xmax + margin * xright)
-            ylim = (ymin - margin * ydown, ymax + margin * yup)
-        else:  # zoom in
+        if zoom_in:
             if xmax - xmin < MAX_ZOOM:  # if max zoom has been reached
                 return
-            margin = margin / ZOOM
+            margin = 1 - 1 / (margin + 1)
             xlim = (xmin + margin * xleft, xmax - margin * xright)
             ylim = (ymin + margin * ydown, ymax - margin * yup)
+        else:  # zoom out
+            xlim = (xmin - margin * xleft, xmax + margin * xright)
+            ylim = (ymin - margin * ydown, ymax + margin * yup)
 
         self.plot.axes.set_xlim(xlim)
         self.plot.axes.set_ylim(ylim)

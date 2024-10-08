@@ -1,3 +1,4 @@
+from PyQt6.QtGui import QKeyEvent
 import numpy as np
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
@@ -67,6 +68,19 @@ class VisualizerApp(QWidget):
     def stop_background_threads(self):
         """Closes all threads."""
         self.canvas.manager.stop_all_threads()
+
+    def keyPressEvent(self, event: QKeyEvent):
+        """Zooms in and out when pressing Ctrl + and Ctrl -."""
+        # Get the physical key's scan code (independent of layout)
+        scan_code = event.nativeScanCode()
+
+        MINUS_KEY = 12
+        PLUS_KEY = 13
+
+        if scan_code == MINUS_KEY:
+            self.canvas.zoom(zoom_in=False)
+        elif scan_code == PLUS_KEY:
+            self.canvas.zoom(zoom_in=True)
 
     def create_bot_bar(self, layout):
         """

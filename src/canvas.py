@@ -40,6 +40,9 @@ class Canvas(FigureCanvas):
     def set_ylim(self, ylim):
         self.ax.set_ylim(ylim)
 
+    def zoom(self, zoom_in: bool):
+        self.manager.zoom(zoom_in)
+
     def centralize_plot_x(self):
         xlim = self.get_xlim()
         x_range = xlim[1] - xlim[0]
