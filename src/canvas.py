@@ -12,7 +12,7 @@ class Canvas(FigureCanvas):
         self.fig, self.ax = plt.subplots()
         super().__init__(self.fig)
         self.setParent(parent)
-        self.parent = parent
+        self.app = parent
         self.pyplot_code()
 
     def pyplot_code(self):
@@ -24,7 +24,7 @@ class Canvas(FigureCanvas):
         (plot,) = self.ax.plot([0], [0])
         self.manager = CanvasManager(
             plot,
-            self.parent,
+            self.app,
         )
         self.manager.connect()
 
@@ -116,10 +116,12 @@ class Canvas(FigureCanvas):
         self.redraw()
         self.manager.plot.axes.axis("equal")
         self.redraw()
+        self.app.update_displayed_lims()
 
     def set_auto_axes(self):
         self.manager.plot.axes.axis("auto")
         self.redraw()
+        self.app.update_displayed_lims()
 
     def redraw(self):
         self.manager.draw_field()
