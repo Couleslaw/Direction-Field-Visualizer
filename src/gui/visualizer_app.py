@@ -70,6 +70,7 @@ class VisualizerApp(QWidget):
 
     def keyPressEvent(self, event: QKeyEvent):
         """Zooms in and out when pressing Ctrl + and Ctrl -."""
+        super().keyPressEvent(event)
         # Get the physical key's scan code (independent of layout)
         scan_code = event.nativeScanCode()
 
