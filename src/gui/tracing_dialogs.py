@@ -447,6 +447,7 @@ What if there are multiple singularities? Just multiply them together!
         if color_dialog.exec() == QColorDialog.DialogCode.Accepted:
             self.settings.line_color = color_dialog.selectedColor().name()
             self.update_color_box()  # Update the color box with the new color
+            self.button_box.button(QDialogButtonBox.StandardButton.Ok).setFocus()
 
     def update_color_box(self):
         """Updates the background color of the color box (QLabel)."""
