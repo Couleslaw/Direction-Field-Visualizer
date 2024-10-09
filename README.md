@@ -1,6 +1,6 @@
 # Direction Field Visualizer
 
-This visualizer allows you to plot the direction field of a given differential equation. You can zoom in and out, move around and watch the direction field change in real time as well as tracing individual solution curves. The arrows can also be colored according to the curvature of the solutions, which can result in some truly spectacular images, see the [gallery](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/gallery).
+This visualizer allows you to plot the direction field of a given differential equation. You can zoom in and out, move around and watch the direction field change in real time as well as trace individual solution curves. The arrows can also be colored according to the curvature of the solutions, which can result in some truly spectacular images, see the [gallery](https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/gallery).
 
 ## What is a direction field?
 
