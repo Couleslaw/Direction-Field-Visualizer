@@ -18,11 +18,13 @@ The tangent lines clearly form circles around the origin. The red semi-circles a
 
 ## Installation
 
-### Windows
+<details><summary><b>Windows</b></summary>
 
-Windows users can download an executable file from the [releases page](https://github.com/Couleslaw/Direction-Field-Visualizer/releases/latest).
+Windows users can simply download an executable file from the [releases page](https://github.com/Couleslaw/Direction-Field-Visualizer/releases/latest).
 
-### Linux and macOS
+</details>
+
+<details><summary><b>Linux and macOS (and Windows)</b></summary>
 
 Ensure that you have [python](https://www.python.org/) and [git](https://git-scm.com/) installed on your system.
 
@@ -45,7 +47,9 @@ pip install -r requirements.txt
 
 Run the program with `python3 main.py`. The virtual environment can be deactivated by running `deactivate`.
 
-#### Building using pyinstaller
+The next time you want to run the program, you only need to activate the virtual environment with `source venv/bin/activate` and run `python3 main.py`.
+
+<details><summary><b>Building using pyinstaller</b></summary>
 
 If you don't want to activate the virtual environment every time you want to run the program, you can use [pyinstaller](https://pyinstaller.org/en/stable/usage.html) to create an executable file. Ensure that the virtual environment is **activated** and run `pip install pyinstaller`. If you have [make](https://www.gnu.org/software/make/) installed, you can simply run `make` to build the executable. Otherwise, run the following commands:
 
@@ -55,6 +59,9 @@ rm -rf build direction_field_visualizer.spec
 ```
 
 This will create an executable file named `direction_field_visualizer`.
+
+</details>
+</details>
 
 ## Usage
 
