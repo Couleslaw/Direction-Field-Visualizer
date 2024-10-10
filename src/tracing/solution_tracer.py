@@ -143,7 +143,7 @@ class SolutionTracer:
         # very high slope --> the diff will probably be x=0 and y>>x
         if (
             not (self.ylim[0] <= y <= self.ylim[1])
-            and fabs(self.slope) > 1e10
+            and fabs(self.slope) > 1e9
             and fabs(diff[0]) < self.max_dx
         ):
             return True
@@ -436,6 +436,8 @@ class SolutionTracer:
                 continue_count = 0  # reset continue count
                 self.vector = resize_vector_by_x(self.vector, self.max_dx)
 
+                print("not sing:", point, self.slope, self.sing_diff, "maxdx:", self.max_dx)
+
                 # if not out of bounds and the step is too big, resize it
                 # allow big steps out of bounds to save time
                 if (
@@ -446,13 +448,13 @@ class SolutionTracer:
 
                 if self.detection_strategy == TraceSettings.Strategy.Manual:
                     # if the step would overshoot a possible singularity, resize it
-                    if vector_length(self.vector) >= (
-                        l := 0.5 * vector_length(self.sing_diff)
-                    ):
+                    if vector_length(self.vector) >= (l := vector_length(self.sing_diff) / 3):
                         self.vector = resize_vector(self.vector, l)
-
             # singularity detected
             else:
+
+                print("sing:", point, self.slope, self.sing_diff)
+
                 # get strategy on how to proceed
                 strategy = self.handle_singularity(point[0], point[1])
 

@@ -2,7 +2,7 @@ from typing import Callable, Tuple
 from math import fabs
 
 
-def newtons_method(function: Callable[[float], float], x0, precision=1e-4):
+def newtons_method(function: Callable[[float], float], x0, precision=1e-5):
     """Newton's method for finding roots of a function."""
 
     def relative_error(xnew, xlast):
@@ -21,7 +21,7 @@ def newtons_method(function: Callable[[float], float], x0, precision=1e-4):
         error = relative_error(xnew, xlast)
         xlast = xnew
         i = i + 1
-        if error < precision or i > 20:
+        if error < precision or i > 30:
             break
     return xlast
 
