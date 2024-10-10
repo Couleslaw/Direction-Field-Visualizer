@@ -1,3 +1,6 @@
+import sys
+import os
+
 from PyQt6.QtWidgets import QPushButton
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt
@@ -13,9 +16,15 @@ class LockButton(QPushButton):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        unlocked_icon_path = "assets/graphics/lock_open.png"
+        locked_icon_path = "assets/graphics/lock_closed.png"
+        if getattr(sys, "frozen", False):
+            unlocked_icon_path = os.path.join(sys._MEIPASS, unlocked_icon_path)
+            locked_icon_path = os.path.join(sys._MEIPASS, locked_icon_path)
+
         # icons
-        self.unlocked_icon = QIcon("assets/graphics/lock_open.png")
-        self.locked_icon = QIcon("assets/graphics/lock_closed.png")
+        self.unlocked_icon = QIcon(unlocked_icon_path)
+        self.locked_icon = QIcon(locked_icon_path)
 
         # tool tip
         self.shortcut_str = ""

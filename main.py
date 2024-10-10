@@ -7,10 +7,9 @@ from src.gui.main_window import MainWindow
 
 def main():
     # magic for pyinstaller to find the icon
+    icon_path = "src/icon.ico"
     if getattr(sys, "frozen", False):
-        icon = os.path.join(sys._MEIPASS, "src/icon.ico")
-    else:
-        icon = "src/icon.ico"
+        icon_path = os.path.join(sys._MEIPASS, icon_path)
 
     # create the application
     app = QApplication(sys.argv)
@@ -28,7 +27,7 @@ def main():
 
     # create the main window
     main_win = MainWindow()
-    main_win.setWindowIcon(QIcon(icon))
+    main_win.setWindowIcon(QIcon(icon_path))
     main_win.show()
 
     # run the application

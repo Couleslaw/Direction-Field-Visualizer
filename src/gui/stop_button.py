@@ -1,3 +1,6 @@
+import sys
+import os
+
 from PyQt6.QtWidgets import QPushButton
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt
@@ -6,7 +9,11 @@ from PyQt6.QtCore import Qt
 class StopButton(QPushButton):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setIcon(QIcon("assets/graphics/stop_red.png"))
+        icon_path = "assets/graphics/stop_red.png"
+        if getattr(sys, "frozen", False):
+            icon_path = os.path.join(sys._MEIPASS, icon_path)
+
+        self.setIcon(QIcon(icon_path))
         self.setFixedSize(50, 50)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.clicked.connect(self.on_clicked)
