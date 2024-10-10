@@ -40,8 +40,6 @@ class LockButton(QPushButton):
                 background-color: rgba(255, 255, 255, 0);
                 padding: 0px;
                 margin: 5px;
-                border: 2px solid black;
-                border-radius: 10px;
                 icon-size: 30px;
             }
             """
