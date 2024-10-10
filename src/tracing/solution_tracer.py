@@ -436,8 +436,6 @@ class SolutionTracer:
                 continue_count = 0  # reset continue count
                 self.vector = resize_vector_by_x(self.vector, self.max_dx)
 
-                print("not sing:", point, self.slope, self.sing_diff, "maxdx:", self.max_dx)
-
                 # if not out of bounds and the step is too big, resize it
                 # allow big steps out of bounds to save time
                 if (
@@ -452,9 +450,6 @@ class SolutionTracer:
                         self.vector = resize_vector(self.vector, l)
             # singularity detected
             else:
-
-                print("sing:", point, self.slope, self.sing_diff)
-
                 # get strategy on how to proceed
                 strategy = self.handle_singularity(point[0], point[1])
 
