@@ -397,7 +397,9 @@ class SolutionTracer:
         """
         yield (x0, y0)
         self.direction = direction
+
         point = np.array([x0, y0])  # current point
+        last_point = point.copy()  # last point
 
         # manual detection
         self.min_step = (
@@ -461,7 +463,14 @@ class SolutionTracer:
                 # if the function goes off to infinity
                 if strategy == self.Strategy.Infinite:
                     # calculate last line segment
+                    last_x, last_y = last_point[0], last_point[1]
+                    last_slope = self.slope_func(last_x, last_y)
+                    if sign(last_slope) != sign(self.slope):
+                        self.slope = last_slope
+                        point = last_point
+
                     line_direction = sign(self.slope) * direction
+
                     yield from self.create_infinite_line(point[0], point[1], line_direction)
                     return
 
@@ -496,6 +505,7 @@ class SolutionTracer:
                             self.vector = resize_vector_by_x(self.vector, self.sing_dx)
 
             # move to the next point
+            last_point = point.copy()
             point += self.vector
 
             # if x is out of bounds --> break
