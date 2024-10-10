@@ -66,13 +66,15 @@ class ParallelTracer(QObject):
             return False
         return True
 
-    def append_curve_to_list(self, curves_list: List[List[Tuple[float, float]]]):
+    def append_curve_to_list(
+        self, curves_list: List[Tuple[TraceSettings, List[Tuple[float, float]]]]
+    ):
         """Appends the current curve to the list of curves and resets the current curve."""
 
         # if should draw curve --> append and reset
         if self.should_draw_curve and self.running:
             self.mutex.lock()
-            curves_list.append(self.curve.copy())
+            curves_list.append((self.settings, self.curve.copy()))
             self.curve = [self.curve[-1]]
             self.should_draw_curve = False
             self.mutex.unlock()
@@ -106,5 +108,7 @@ class ParallelTracer(QObject):
 
     def stop(self):
         """Stops the thread."""
+        if self.running == False:
+            return
         self.running = False
         self.finished.emit()

@@ -1,5 +1,5 @@
-from PyQt6.QtCore import QThread, QObject
-from typing import Callable
+from PyQt6.QtCore import QThread, QObject, QTimer
+from typing import Callable, List, Tuple
 
 from src.threading.parallel_tracer import ParallelTracer
 from src.threading.drawing_manager import DrawingManager
@@ -47,7 +47,9 @@ class Job:
         # start the thread
         self.thread.start()
 
-    def append_curve_to_list(self, curves_list: list[list[tuple[float, float]]]):
+    def append_curve_to_list(
+        self, curves_list: List[Tuple[TraceSettings, List[Tuple[float, float]]]]
+    ):
         """Appends the tracer's curve to the list"""
         return self.tracer.append_curve_to_list(curves_list)
 
@@ -60,15 +62,18 @@ class TraceManager:
     """Manages tracing jobs and drawing curves"""
 
     draw_interval = 50  # ms
+    show_stop_button_delay = 1500  # ms
 
-    def __init__(self, plot, settings: TraceSettings, enable_trace_settings_button: Callable):
-        self.enable_trace_settings_button_function = enable_trace_settings_button
+    def __init__(self, plot, show_stop_button: Callable, hide_stop_button: Callable):
+        self.show_stop_button = show_stop_button
+        self.hide_stop_button = hide_stop_button
+
         # remember running jobs
         self.jobs: list[Job] = []
         # timer for periodic drawing
         self.create_timer()
         # drawing manager
-        self.create_drawing_manager(settings, plot)
+        self.create_drawing_manager(plot)
 
     def stop_all_threads(self):
         """Stops all running threads"""
@@ -83,10 +88,6 @@ class TraceManager:
         self.drawing_manager_thread.quit()
         self.drawing_manager_thread.wait()
 
-    def update_settings(self, settings: TraceSettings):
-        """Updates the settings of the drawing manager"""
-        self.drawing_manager.update_settings(settings)
-
     def create_timer(self):
         """Creates and starts a timer for periodic drawing"""
         self.timer_thread = QThread()
@@ -96,10 +97,10 @@ class TraceManager:
         self.timer_thread.finished.connect(self.timer.deleteLater)
         self.timer_thread.start()
 
-    def create_drawing_manager(self, settings, plot):
+    def create_drawing_manager(self, plot):
         """Creates and starts a drawing manager in a separate thread"""
         self.drawing_manager_thread = QThread()
-        self.drawing_manager = DrawingManager(settings, plot)
+        self.drawing_manager = DrawingManager(plot)
         self.drawing_manager.moveToThread(self.drawing_manager_thread)
         self.drawing_manager_thread.started.connect(self.drawing_manager.run)
         self.drawing_manager_thread.finished.connect(self.drawing_manager.deleteLater)
@@ -108,15 +109,6 @@ class TraceManager:
     def remove_job_from_list(self, job: Job):
         """Removes 'job' from the list of running jobs"""
         self.jobs.remove(job)
-
-    def disable_trace_settings_button(self):
-        """The trace settings button should be disabled when tracing"""
-        self.enable_trace_settings_button_function(False)
-
-    def enable_trace_settings_button(self):
-        """Enables the trace settings button if there are no running jobs"""
-        if not self.jobs:
-            self.enable_trace_settings_button_function(True)
 
     def stop_tracing(self):
         """Stops all running jobs and current drawing task"""
@@ -138,14 +130,19 @@ class TraceManager:
         """Starts a new tracer in a new thread"""
         job = Job(tracer)
 
-        # disable the trace settings button while tracing
-        self.disable_trace_settings_button()
-
-        # enable the trace settings button when the job is finished
         def on_finished():
             self.remove_job_from_list(job)
-            self.enable_trace_settings_button()
+            # hide the stop button if no jobs are running
+            if not self.jobs:
+                self.hide_stop_button()
 
         # start the job
         job.start(on_finished)
         self.jobs.append(job)
+
+        # show the stop button if tracing takes too long
+        def after_delay():
+            if job in self.jobs:
+                self.show_stop_button()
+
+        QTimer.singleShot(self.show_stop_button_delay, after_delay)

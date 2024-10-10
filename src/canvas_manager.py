@@ -28,12 +28,15 @@ class CanvasManager:
         self.app = app
         self.trace_settings = TraceSettings()
         self.trace_manager = TraceManager(
-            self.plot, self.trace_settings, self.app.enable_trace_settings_button
+            self.plot,
+            app.show_stop_tracing_button,
+            app.hide_stop_tracing_button,
         )
         self.field_settings = DirectionFieldSettings()
         self.field_builder = DirectionFieldBuilder(self.plot, self.field_settings)
         self.field_plotter = DirectionFieldPlotter(self.plot, self.field_settings)
 
+        self.canvas_locked = False  # True if the canvas can be moved
         self.press = None  # holds x, y of pressed point while moving, else None
         self.moving_canvas = False  # True if the canvas is being moved
         self.drawing_mouse_line = False
@@ -48,6 +51,10 @@ class CanvasManager:
     def stop_all_threads(self):
         """Stops all the threads."""
         self.trace_manager.stop_all_threads()
+
+    def lock_canvas(self, lock: bool):
+        """Locks or unlocks the canvas."""
+        self.canvas_locked = lock
 
     def connect(self):
         """Connect to all the events we need."""
@@ -70,7 +77,7 @@ class CanvasManager:
             return
 
         # left mouse button --> begin canvas movement
-        elif event.button == 1:
+        elif event.button == 1 and not self.canvas_locked:
             self.draw_field(keep_cache=True)
             self.press = (event.xdata, event.ydata)
             self.moving_canvas = True
@@ -89,6 +96,9 @@ class CanvasManager:
                 self.remove_mouse_line_from_plot()
                 self.plot.figure.canvas.draw()
                 self.last_mouse_line = None
+            return
+
+        if self.canvas_locked:
             return
 
         self.mouse_pos = (event.xdata, event.ydata)
@@ -116,7 +126,7 @@ class CanvasManager:
 
     def on_release(self, event):
         """Stops canvas movement or point movement."""
-        if self.press is None or event.inaxes != self.plot.axes:
+        if self.press is None or event.inaxes != self.plot.axes or self.canvas_locked:
             return
 
         if self.moving_canvas:
@@ -138,6 +148,10 @@ class CanvasManager:
         Zooms in or out based on the zoom_in parameter by scaling the x and y lims accordingly.
         If x and y are None, zooms to the center of the plot. Else zooms to the point (x, y).
         """
+
+        if self.canvas_locked:
+            return
+
         margin = (ZOOM - 1) / 2  # how much to add on both sides
         (xmin, xmax), (ymin, ymax) = self.plot.axes.get_xlim(), self.plot.axes.get_ylim()
 
@@ -233,6 +247,7 @@ class CanvasManager:
             return
 
         x, y = self.press
+        settings = self.trace_settings.copy()
 
         # create the two tracers
         right_tracer = ParallelTracer(
@@ -240,7 +255,7 @@ class CanvasManager:
             y,
             SolutionTracer.Direction.Right,
             self.field_settings.function_string,
-            self.trace_settings,
+            settings,
             self.plot,
         )
 
@@ -249,11 +264,10 @@ class CanvasManager:
             y,
             SolutionTracer.Direction.Left,
             self.field_settings.function_string,
-            self.trace_settings,
+            settings,
             self.plot,
         )
 
-        self.trace_manager.update_settings(self.trace_settings)
         self.trace_manager.start_new_tracer(right_tracer)
         self.trace_manager.start_new_tracer(left_tracer)
 

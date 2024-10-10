@@ -8,11 +8,10 @@ from src.default_constants import DEFAULT_XMIN, DEFAULT_XMAX, DEFAULT_YMIN, DEFA
 class Canvas(FigureCanvas):
     """Ensures communication between the matplotlib figure and PyQt5 GUI."""
 
-    def __init__(self, parent):  # parent is the QtWidget object the figure will be embedded in
+    def __init__(self, app):  # app is the QtWidget object the figure will be embedded in
         self.fig, self.ax = plt.subplots()
         super().__init__(self.fig)
-        self.setParent(parent)
-        self.app = parent
+        self.app = app
         self.pyplot_code()
 
     def pyplot_code(self):
@@ -42,6 +41,12 @@ class Canvas(FigureCanvas):
 
     def zoom(self, zoom_in: bool):
         self.manager.zoom(zoom_in)
+
+    def lock_canvas(self, lock: bool):
+        self.manager.lock_canvas(lock)
+
+    def stop_tracing(self):
+        self.manager.trace_manager.stop_tracing()
 
     def centralize_plot_x(self):
         xlim = self.get_xlim()

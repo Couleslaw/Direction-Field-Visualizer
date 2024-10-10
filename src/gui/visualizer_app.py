@@ -1,5 +1,5 @@
-from PyQt6.QtGui import QKeyEvent
 import numpy as np
+from PyQt6.QtGui import QKeyEvent
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QWidget,
@@ -18,9 +18,12 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
     QGroupBox,
+    QGridLayout,
 )
 
 from src.gui.tracing_dialogs import CoordinateDialog, TraceSettingsDialog
+from src.gui.lock_button import LockButton, LockState
+from src.gui.stop_button import StopButton
 from src.canvas import Canvas
 from src.default_constants import *
 
@@ -39,20 +42,16 @@ class VisualizerApp(QWidget):
         self.setLayout(appLayout)
 
         # main layout = graph + bar bellow it
-        graph_layout = QVBoxLayout()
-        appLayout.addLayout(graph_layout)
-
-        # create the matplotlib graph
-        self.canvas = Canvas(self)
-        self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        graph_layout.addWidget(self.canvas)
+        main_layout = QVBoxLayout()
+        appLayout.addLayout(main_layout)
+        self.create_canvas(main_layout)
 
         # create the bot bar
         bot_bar = QWidget()
         bot_bar_layout = QHBoxLayout()
         bot_bar.setLayout(bot_bar_layout)
         self.create_bot_bar(bot_bar_layout)
-        graph_layout.addWidget(bot_bar)
+        main_layout.addWidget(bot_bar)
 
         # create the sidebar
         sidebar = QWidget()
@@ -69,8 +68,16 @@ class VisualizerApp(QWidget):
         self.canvas.manager.stop_all_threads()
 
     def keyPressEvent(self, event: QKeyEvent):
-        """Zooms in and out when pressing Ctrl + and Ctrl -."""
+        """
+        Stops tracing when pressing Esc
+        Zoom in and out when pressing Ctrl + and Ctrl -
+        """
         super().keyPressEvent(event)
+
+        if event.key() == Qt.Key.Key_Escape:
+            self.canvas.stop_tracing()
+            return
+
         # Get the physical key's scan code (independent of layout)
         scan_code = event.nativeScanCode()
 
@@ -81,6 +88,57 @@ class VisualizerApp(QWidget):
             self.canvas.zoom(zoom_in=False)
         elif scan_code == PLUS_KEY:
             self.canvas.zoom(zoom_in=True)
+
+    def create_canvas(self, layout):
+        """Creates the canvas for the graph and overlay buttons."""
+
+        container = QWidget(self)
+        container_layout = QGridLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+
+        # create the matplotlib graph
+        self.canvas = Canvas(self)
+        self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        container_layout.addWidget(self.canvas)
+
+        overlay_layout = QHBoxLayout()
+
+        # add lock button to overlay
+        self.lock_button = LockButton(self)
+        self.lock_button.setState(LockState.Unlocked)
+        self.lock_button.setShortcut("Ctrl+L")
+        self.lock_button.clicked.connect(self.clicked_lock_canvas_button)
+        overlay_layout.addWidget(self.lock_button)
+
+        # add space
+        spacer = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        overlay_layout.addItem(spacer)
+
+        # add 'stop tracing' button to overlay
+        self.stop_tracing_button = StopButton(self)
+        self.stop_tracing_button.setVisible(False)
+        self.stop_tracing_button.setToolTip(
+            "Stop tracing (Esc)"
+        )  # ESC handled in keyPressEvent
+        self.stop_tracing_button.clicked.connect(self.canvas.stop_tracing)
+        overlay_layout.addWidget(self.stop_tracing_button)
+
+        # add overlay to container
+        container_layout.addLayout(overlay_layout, 0, 0, Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(container)
+
+    def clicked_lock_canvas_button(self):
+        """Locks the canvas if it is unlocked and vice versa."""
+        self.canvas.lock_canvas(not self.canvas.manager.canvas_locked)
+
+    def show_stop_tracing_button(self):
+        """Shows the stop tracing button."""
+        self.stop_tracing_button.setVisible(True)
+
+    def hide_stop_tracing_button(self):
+        """Hides the stop tracing button."""
+        self.stop_tracing_button.setVisible(False)
 
     def create_bot_bar(self, layout):
         """
