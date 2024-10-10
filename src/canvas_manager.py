@@ -32,6 +32,7 @@ class CanvasManager:
             app.show_stop_tracing_button,
             app.hide_stop_tracing_button,
         )
+        self.has_trace_curves_on_plot = False
         self.field_settings = DirectionFieldSettings()
         self.field_builder = DirectionFieldBuilder(self.plot, self.field_settings)
         self.field_plotter = DirectionFieldPlotter(self.plot, self.field_settings)
@@ -229,6 +230,9 @@ class CanvasManager:
         if len(arrows) == 0:
             return
 
+        # traced curves will be removed
+        self.has_trace_curves_on_plot = False
+
         colors = self.field_builder.get_colors(arrow_centers)
         self.field_plotter.draw_field(arrows, colors)
 
@@ -245,6 +249,8 @@ class CanvasManager:
         """Draws a solution curve passing through self.press"""
         if self.press is None:
             return
+
+        self.has_trace_curves_on_plot = True
 
         x, y = self.press
         settings = self.trace_settings.copy()

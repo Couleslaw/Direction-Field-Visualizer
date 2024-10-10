@@ -67,9 +67,26 @@ class VisualizerApp(QWidget):
         """Closes all threads."""
         self.canvas.manager.stop_all_threads()
 
+    def open_reset_plot_dialog(self):
+        """Opens a dialog to reset the plot and erase all traced curves."""
+
+        if not self.canvas.manager.has_trace_curves_on_plot:
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Message",
+            "Are you sure you want to erase all traced curves?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.canvas.redraw()
+
     def keyPressEvent(self, event: QKeyEvent):
         """
         Stops tracing when pressing Esc
+        Redraws the plot when pressing Ctrl+R
         Zoom in and out when pressing Ctrl + and Ctrl -
         """
         super().keyPressEvent(event)
@@ -77,6 +94,11 @@ class VisualizerApp(QWidget):
         if event.key() == Qt.Key.Key_Escape:
             self.canvas.stop_tracing()
             return
+
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            if event.key() == Qt.Key.Key_R:
+                self.open_reset_plot_dialog()
+                return
 
         # Get the physical key's scan code (independent of layout)
         scan_code = event.nativeScanCode()
