@@ -466,6 +466,10 @@ class SolutionTracer:
                         self.slope = last_slope
                         point = last_point
 
+                    if sign(self.slope) == 0:
+                        yield (point[0], point[1])
+                        return
+
                     line_direction = sign(self.slope) * direction
 
                     yield from self.create_infinite_line(point[0], point[1], line_direction)
