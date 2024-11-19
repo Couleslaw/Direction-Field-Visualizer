@@ -1,7 +1,6 @@
 from typing import Tuple, Iterator
 import numpy as np
 
-
 from src.math_functions import *
 from src.default_constants import (
     TRACE_NUM_SEGMENTS_IN_DIAGONAL,
@@ -430,6 +429,10 @@ class SolutionTracer:
                 self.vector = np.array([1, self.slope]) * direction
             except:
                 break
+
+            # if the slope is too big --> end
+            if vector_length(self.vector) == np.inf:
+                return
 
             # no singularity detected
             if not self.possible_singularity_at(point[0], point[1]):
