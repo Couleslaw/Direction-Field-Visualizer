@@ -24,8 +24,8 @@ class DirectionFieldSettings:
 
     def __init__(self):
         # arrow settings
-        self.arrow_length = DEFAULT_ARROW_WIDTH
-        self.arrow_width = DEFAULT_ARROW_LENGTH
+        self.arrow_length = DEFAULT_ARROW_LENGTH
+        self.arrow_width = DEFAULT_ARROW_WIDTH
         self.num_arrows = DEFAULT_NUM_ARROWS
 
         # color settings
@@ -42,7 +42,9 @@ class DirectionFieldSettings:
         self.show_grid = False
         self.show_axes = True
 
-    def get_arrow_length(self, xlim: Tuple[float, float], ylim: Tuple[float, float]) -> float:
+    def calculate_arrow_length(
+        self, xlim: Tuple[float, float], ylim: Tuple[float, float]
+    ) -> float:
         """Returns the arrow length given limits of the axes."""
         diagonal = sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
         return diagonal * self.arrow_length / 200

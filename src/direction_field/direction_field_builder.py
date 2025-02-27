@@ -208,7 +208,7 @@ class DirectionFieldBuilder:
 
         #  get arrow length and number of arrows
         xlim, ylim = self.__plot_axes.get_xlim(), self.__plot_axes.get_ylim()
-        arrow_len = self.__settings.get_arrow_length(xlim, ylim)
+        arrow_len = self.__settings.calculate_arrow_length(xlim, ylim)
         num_arrows = self.__settings.num_arrows
 
         # space between arrows
