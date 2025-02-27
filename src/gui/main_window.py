@@ -4,6 +4,8 @@ from PyQt6.QtWidgets import QMainWindow, QMessageBox
 from src.gui.visualizer_app import VisualizerApp
 from src.gui.app_style import StyleWindow, StyleSettings
 
+from typing import override
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -17,6 +19,7 @@ class MainWindow(QMainWindow):
 
         self.style_settings = StyleSettings()
 
+    @override
     def closeEvent(self, a0: QCloseEvent | None):
         """Closes the application."""
 
@@ -36,6 +39,7 @@ class MainWindow(QMainWindow):
         else:
             event.ignore()
 
+    @override
     def keyPressEvent(self, a0: QKeyEvent | None):
         """Opens the user guide on F1 press."""
 

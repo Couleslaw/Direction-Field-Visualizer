@@ -263,8 +263,7 @@ class CanvasManager:
             new_function (str): The new slope-function to be drawn.
 
         Returns:
-            bool: True if the function is valid and was set, False otherwise.
-        """ """
+            success (bool): True if the function is valid and was set, False otherwise.
         """
 
         # check if the new function is the same as the previous one

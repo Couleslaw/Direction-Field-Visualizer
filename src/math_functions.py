@@ -1,3 +1,5 @@
+from typing import Callable
+
 # import standard function from math
 from math import (
     sin,
@@ -25,6 +27,7 @@ from math import (
     e,
 )
 
+# define some other common math function
 ln = log
 abs = fabs
 cot = lambda x: cos(x) / sin(x)
@@ -34,8 +37,6 @@ acot = lambda x: pi / 2 - atan(x)
 asec = lambda x: acos(1 / x)
 acsc = lambda x: asin(1 / x)
 sign = lambda x: int((x > 0)) - int((x < 0))
-
-from typing import Callable
 
 
 def create_function_from_string(string: str) -> Callable[[float, float], float]:

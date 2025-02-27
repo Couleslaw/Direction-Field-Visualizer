@@ -27,6 +27,8 @@ from src.gui.stop_button import StopButton
 from src.canvas import Canvas
 from src.default_constants import *
 
+from typing import override
+
 
 class VisualizerApp(QWidget):
     """Creates the GUI using the PyQt6 library."""
@@ -83,6 +85,7 @@ class VisualizerApp(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             self.canvas.redraw()
 
+    @override
     def keyPressEvent(self, a0: QKeyEvent | None):
         """
         Stops tracing when pressing Esc

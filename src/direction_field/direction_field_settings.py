@@ -1,4 +1,4 @@
-from src.math_functions import create_function_from_string
+from src.math_functions import create_function_from_string, sqrt
 from src.default_constants import (
     DEFAULT_FUNCTION,
     DEFAULT_ARROW_LENGTH,
@@ -14,6 +14,7 @@ from src.default_constants import (
     MIN_COLOR_EXP,
     MAX_COLOR_EXP,
 )
+from typing import Tuple
 
 
 class DirectionFieldSettings:
@@ -41,12 +42,10 @@ class DirectionFieldSettings:
         self.show_grid = False
         self.show_axes = True
 
-    def get_relative_arrow_length(self):
-        """
-        Returns the relative arrow length in respect to diagonal length.
-        Get the actual arrow length by multiplying this value by the diagonal length.
-        """
-        return self.arrow_length / 200
+    def get_arrow_length(self, xlim: Tuple[float, float], ylim: Tuple[float, float]) -> float:
+        """Returns the arrow length given limits of the axes."""
+        diagonal = sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
+        return diagonal * self.arrow_length / 200
 
     def get_arrow_width(self):
         """Returns the arrow width."""

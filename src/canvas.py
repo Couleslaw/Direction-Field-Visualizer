@@ -181,7 +181,7 @@ class Canvas(FigureCanvas):
             new_function (str): The new function to be drawn.
 
         Returns:
-            bool: True if the function is valid and was set, False otherwise.
+            success (bool): True if the function is valid and was set, False otherwise.
         """
         if self.manager.set_new_function(new_function):
             self.redraw()
