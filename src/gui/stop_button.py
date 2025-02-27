@@ -1,13 +1,15 @@
 import sys
 import os
 
-from PyQt6.QtWidgets import QPushButton
+from PyQt6.QtWidgets import QPushButton, QWidget
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt
 
 
 class StopButton(QPushButton):
-    def __init__(self, parent=None):
+    """A red button that disappears when clicked."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         icon_path = "assets/graphics/stop_red.png"
         if getattr(sys, "frozen", False):
@@ -28,5 +30,6 @@ class StopButton(QPushButton):
             """
         )
 
-    def on_clicked(self):
+    def on_clicked(self) -> None:
+        """Hides the button."""
         self.setVisible(False)

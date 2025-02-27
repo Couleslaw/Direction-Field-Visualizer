@@ -8,16 +8,22 @@ from typing import override
 
 
 class MainWindow(QMainWindow):
+    """Main window of the application."""
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Direction Field Visualizer")
 
-        self.app = VisualizerApp()
-        self.setCentralWidget(self.app)
+        # create the visualizer app
+        self.__app = VisualizerApp()
+        self.setCentralWidget(self.__app)
+
+        # set minimum and default window size
         self.setMinimumSize(928, 580)
         self.resize(1024, 640)
 
-        self.style_settings = StyleSettings()
+        # create app style settings
+        self.__style_settings = StyleSettings()
 
     @override
     def closeEvent(self, a0: QCloseEvent | None):
@@ -34,7 +40,7 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            self.app.stop_background_threads()
+            self.__app.stop_background_threads()
             event.accept()
         else:
             event.ignore()
@@ -60,6 +66,6 @@ class MainWindow(QMainWindow):
         )
 
     def open_style_window(self):
-        """Opens the style window."""
-        style_window = StyleWindow(self.style_settings, self)
+        """Opens a dialog to chose app style."""
+        style_window = StyleWindow(self.__style_settings, self)
         style_window.exec()

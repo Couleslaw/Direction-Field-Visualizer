@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Any
 
 # import standard function from math
 from math import (
@@ -39,6 +39,6 @@ acsc = lambda x: asin(1 / x)
 sign = lambda x: int((x > 0)) - int((x < 0))
 
 
-def create_function_from_string(string: str) -> Callable[[float, float], float]:
+def create_function_from_string(string: str) -> Callable[[float, float], float] | Any:
     """Receives a string that should be a mathematical function f(x,y) and returns a lambda expression."""
     return eval(f"lambda x, y: {string}")

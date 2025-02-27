@@ -93,7 +93,7 @@ class Canvas(FigureCanvas):
 
     def lock_canvas(self, lock: bool) -> None:
         """Locks or unlocks the canvas."""
-        self.manager.lock_canvas(lock)
+        self.manager.canvas_locked = lock
 
     def stop_tracing(self) -> None:
         """Stops tracing of all partially drawn lines."""

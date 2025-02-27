@@ -44,14 +44,14 @@ class CanvasManager:
         )
 
         self.field_settings = DirectionFieldSettings()
-        self.field_builder = DirectionFieldBuilder(self.__canvas.axes, self.field_settings)
-        self.field_plotter = DirectionFieldPlotter(self.__canvas.axes, self.field_settings)
+        self.__field_builder = DirectionFieldBuilder(self.__canvas.axes, self.field_settings)
+        self.__field_plotter = DirectionFieldPlotter(self.__canvas.axes, self.field_settings)
+
+        # True if the canvas can be moved
+        self.canvas_locked: bool = False
 
         # True if there are no trace curves drawn on the canvas
         self.__no_trace_curves_on_canvas: bool = True
-
-        # True if the canvas can be moved
-        self.__canvas_locked: bool = False
 
         # holds x, y of pressed point while moving, else None
         self.__press: Tuple[float, float] | None = None
@@ -109,10 +109,6 @@ class CanvasManager:
         """Stops all tracing threads."""
         self.trace_manager.stop_all_threads()
 
-    def lock_canvas(self, lock: bool) -> None:
-        """Locks or unlocks the canvas."""
-        self.__canvas_locked = lock
-
     def connect(self) -> None:
         """Connect the Canvas to user input events."""
         self.cidpress = self.__canvas.figure.canvas.mpl_connect(
@@ -135,7 +131,7 @@ class CanvasManager:
             return
 
         # left mouse button --> begin canvas movement
-        elif event.button == 1 and not self.__canvas_locked:
+        elif event.button == 1 and not self.canvas_locked:
             self.draw_field(keep_cache=True)
             self.__press = (event.xdata, event.ydata)
             self.__moving_canvas = True
@@ -158,7 +154,7 @@ class CanvasManager:
             return
 
         # if the canvas is locked, do not move it
-        if self.__canvas_locked:
+        if self.canvas_locked:
             return
 
         self.__mouse_pos = (event.xdata, event.ydata)
@@ -189,7 +185,7 @@ class CanvasManager:
 
     def on_release(self, event) -> None:
         """Stops canvas movement."""
-        if self.__press is None or event.inaxes != self.__canvas.axes or self.__canvas_locked:
+        if self.__press is None or event.inaxes != self.__canvas.axes or self.canvas_locked:
             return
 
         # accept only left mouse button
@@ -216,7 +212,7 @@ class CanvasManager:
         If `x` and `y` are `None`, zooms to the center of the plot. Else zooms to the point `(x, y)`.
         """
 
-        if self.__canvas_locked:
+        if self.canvas_locked:
             return
 
         # get current limits
@@ -299,10 +295,10 @@ class CanvasManager:
         self.trace_manager.stop_tracing()
 
         if not keep_cache:
-            self.field_builder.clear_arrow_cache()
+            self.__field_builder.clear_arrow_cache()
 
         # try to calculate direction field
-        result = self.field_builder.get_arrows()
+        result = self.__field_builder.get_arrows()
         if result == None:
             # display a message box if the function is invalid
             QMessageBox.critical(self.__canvas.app, "Error", f"Invalid function.")
@@ -318,8 +314,8 @@ class CanvasManager:
         self.__no_trace_curves_on_canvas = True
 
         # draw the direction field
-        colors = self.field_builder.get_colors(arrow_centers)
-        self.field_plotter.draw_field(arrows, colors)
+        colors = self.__field_builder.get_colors(arrow_centers)
+        self.__field_plotter.draw_field(arrows, colors)
 
         # draw mouse line
         if self.__drawing_mouse_line:
@@ -387,7 +383,7 @@ class CanvasManager:
         self.remove_mouse_line_from_plot()
 
         # calculate coordinates of the new arrow
-        line_info = self.field_builder.get_arrow(
+        line_info = self.__field_builder.get_arrow(
             self.__mouse_pos[0], self.__mouse_pos[1], self.mouse_line_length, use_cache=False
         )
 

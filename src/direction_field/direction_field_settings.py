@@ -14,7 +14,7 @@ from src.default_constants import (
     MIN_COLOR_EXP,
     MAX_COLOR_EXP,
 )
-from typing import Tuple, Callable
+from typing import Tuple, Callable, Any
 
 
 class DirectionFieldSettings:
@@ -37,7 +37,7 @@ class DirectionFieldSettings:
 
         # slope function
         self.function_string: str = DEFAULT_FUNCTION
-        self.function: Callable[[float, float], float] = create_function_from_string(
+        self.function: Callable[[float, float], float] | Any = create_function_from_string(
             self.function_string
         )
 
