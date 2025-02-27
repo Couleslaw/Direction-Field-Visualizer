@@ -178,7 +178,7 @@ class DirectionFieldBuilder:
         # save old axes limits
         xlim = self.__plot_axes.get_xlim()
         ylim = self.__plot_axes.get_ylim()
-        curvature_dx = self.__settings.get_curvature_dx()
+        curvature_dx = self.__settings.curvature_dx
 
         #  calculate curvatures
         curvatures: list[float] = []
@@ -191,7 +191,7 @@ class DirectionFieldBuilder:
 
         # normalize and scale curvatures before mapping them to colors
         normalized_curvatures = self.normalize_curvatures(np.abs(curvatures), off_screen)
-        exponent = self.__settings.get_color_exp()
+        exponent = self.__settings.color_exp
         color_map = self.__settings.color_map
         return cm.get_cmap(color_map)(normalized_curvatures**exponent)
 
@@ -274,7 +274,7 @@ class DirectionFieldPlotter:
             angles="xy",
             scale_units="xy",
             scale=1,
-            width=self.__settings.get_arrow_width(),
+            width=self.__settings.arrow_width,
             color=colors,
             cmap="hsv",
         )

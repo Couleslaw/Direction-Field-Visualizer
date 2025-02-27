@@ -12,7 +12,13 @@ from matplotlib.axes import Axes
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from src.canvas_manager import CanvasManager
-from src.default_constants import DEFAULT_XMIN, DEFAULT_XMAX, DEFAULT_YMIN, DEFAULT_YMAX
+from src.default_constants import (
+    DEFAULT_XMIN,
+    DEFAULT_XMAX,
+    DEFAULT_YMIN,
+    DEFAULT_YMAX,
+    AVAILABLE_COLOR_MAPS,
+)
 
 
 class Canvas(FigureCanvas):
@@ -114,7 +120,7 @@ class Canvas(FigureCanvas):
 
     def set_arrow_length(self, arrow_length: int) -> None:
         """The display length of the arrows will be set to `arrow_length`."""
-        self.manager.field_settings.arrow_length = arrow_length
+        self.manager.field_settings.set_arrow_length(arrow_length)
         self.redraw()
 
     def set_arrow_width(self, arrow_width: int) -> None:
@@ -143,6 +149,7 @@ class Canvas(FigureCanvas):
 
     def set_color_map(self, color_map: str) -> None:
         """Sets the color map of the direction field to `color_map`."""
+        assert color_map in AVAILABLE_COLOR_MAPS
         self.manager.field_settings.color_map = color_map
         self.redraw()
 
