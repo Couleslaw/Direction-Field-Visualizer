@@ -1,5 +1,6 @@
 # custom ignores
 todo
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
