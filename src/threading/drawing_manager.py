@@ -1,4 +1,7 @@
 from matplotlib.collections import LineCollection
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+
 from PyQt6.QtCore import QObject, QMutex
 from typing import List, Tuple
 from src.tracing.trace_settings import TraceSettings
@@ -7,9 +10,10 @@ from src.tracing.trace_settings import TraceSettings
 class DrawingManager(QObject):
     """Manages drawing curves in a separate thread."""
 
-    def __init__(self, plot):
+    def __init__(self, plot_axes: Axes, plot_figure: Figure):
         super().__init__()
-        self.plot = plot
+        self._plot_axes = plot_axes
+        self._plot_figure = plot_figure
         self.curve_queue = []  # list of curves to draw
         # mutex for thread safety
         self.queue_mutex = QMutex()
@@ -44,14 +48,16 @@ class DrawingManager(QObject):
 
             # draw the curve
             lc = LineCollection([curve], color=color, linewidth=width)
-            self.plot.axes.add_collection(lc)
-        self.plot.figure.canvas.draw()
+            self._plot_axes.add_collection(lc)
+        self._plot_figure.canvas.draw()
 
     def run(self):
         """Periodically draws the curves from the queue"""
         while self.running:
             # sleep for a while to avoid busy waiting
-            self.thread().msleep(5)
+            thread = self.thread()
+            if thread is not None:
+                thread.msleep(5)
 
             # get a bunch of curves from the queue and draw them
             curves_with_settings = []

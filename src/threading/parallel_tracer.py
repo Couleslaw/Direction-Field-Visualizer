@@ -14,10 +14,11 @@ class ParallelTracer(QObject):
         self,
         x,
         y,
+        xlim,
+        ylim,
         direction,
         slope_function_str,
         trace_settings: TraceSettings,
-        plot,
     ):
         assert direction in [SolutionTracer.Direction.Left, SolutionTracer.Direction.Right]
         super().__init__()
@@ -28,9 +29,8 @@ class ParallelTracer(QObject):
         self.slope_function_str = slope_function_str
         self.settings = trace_settings
 
-        self.plot = plot
-        self.xlim = plot.axes.get_xlim()
-        self.ylim = plot.axes.get_ylim()
+        self.xlim = xlim
+        self.ylim = ylim
 
         # initial values
         self.running = False

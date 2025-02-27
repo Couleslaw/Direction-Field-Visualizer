@@ -5,6 +5,9 @@ from src.threading.parallel_tracer import ParallelTracer
 from src.threading.drawing_manager import DrawingManager
 from src.tracing.trace_settings import TraceSettings
 
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+
 
 class PeriodicTimer(QObject):
     """A timer that calls a function periodically"""
@@ -16,8 +19,8 @@ class PeriodicTimer(QObject):
         self.running = True
 
     def run(self):
-        while self.running:
-            self.thread().msleep(self.time_period)
+        while self.running and (thread := self.thread()) is not None:
+            thread.msleep(self.time_period)
             self.on_timeout()
 
     def stop(self):
@@ -64,7 +67,13 @@ class TraceManager:
     draw_interval = 50  # ms
     show_stop_button_delay = 1500  # ms
 
-    def __init__(self, plot, show_stop_button: Callable, hide_stop_button: Callable):
+    def __init__(
+        self,
+        plot_axes: Axes,
+        plot_figure: Figure,
+        show_stop_button: Callable,
+        hide_stop_button: Callable,
+    ):
         self.show_stop_button = show_stop_button
         self.hide_stop_button = hide_stop_button
 
@@ -73,7 +82,7 @@ class TraceManager:
         # timer for periodic drawing
         self.create_timer()
         # drawing manager
-        self.create_drawing_manager(plot)
+        self.create_drawing_manager(plot_axes, plot_figure)
 
     def stop_all_threads(self):
         """Stops all running threads"""
@@ -97,10 +106,10 @@ class TraceManager:
         self.timer_thread.finished.connect(self.timer.deleteLater)
         self.timer_thread.start()
 
-    def create_drawing_manager(self, plot):
+    def create_drawing_manager(self, plot_axes: Axes, plot_figure: Figure):
         """Creates and starts a drawing manager in a separate thread"""
         self.drawing_manager_thread = QThread()
-        self.drawing_manager = DrawingManager(plot)
+        self.drawing_manager = DrawingManager(plot_axes, plot_figure)
         self.drawing_manager.moveToThread(self.drawing_manager_thread)
         self.drawing_manager_thread.started.connect(self.drawing_manager.run)
         self.drawing_manager_thread.finished.connect(self.drawing_manager.deleteLater)

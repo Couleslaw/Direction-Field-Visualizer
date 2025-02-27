@@ -14,6 +14,8 @@ def main():
     # create the application
     app = QApplication(sys.argv)
     app.setApplicationName("Direction Field Visualizer")
+
+    # custom ToolTip css
     app.setStyleSheet(
         """
             QToolTip {

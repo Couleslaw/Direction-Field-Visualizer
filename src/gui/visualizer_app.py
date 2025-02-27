@@ -83,12 +83,17 @@ class VisualizerApp(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             self.canvas.redraw()
 
-    def keyPressEvent(self, event: QKeyEvent):
+    def keyPressEvent(self, a0: QKeyEvent | None):
         """
         Stops tracing when pressing Esc
         Redraws the plot when pressing Ctrl+R
         Zoom in and out when pressing Ctrl + and Ctrl -
         """
+
+        # the argument is not called 'event' because the function being overridden has a different signature
+        if (event := a0) is None:
+            return
+
         super().keyPressEvent(event)
 
         if event.key() == Qt.Key.Key_Escape:
@@ -599,8 +604,8 @@ Shortcut: 'Ctrl+T'"""
             try:
                 x = float(eval(x))
                 y = float(eval(y))
-                xlim = self.canvas.get_xlim()
-                ylim = self.canvas.get_ylim()
+                xlim = self.canvas.xlim
+                ylim = self.canvas.ylim
                 if x < xlim[0] or x > xlim[1]:
                     QMessageBox.warning(self, "Warning", "X is out of bounds, not tracing.")
                     return
@@ -628,8 +633,8 @@ Shortcut: 'Ctrl+T'"""
             self,
             new_settings,
             self.canvas.manager.field_settings.function_string,
-            self.canvas.get_xlim(),
-            self.canvas.get_ylim(),
+            self.canvas.xlim,
+            self.canvas.ylim,
         )
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.canvas.manager.trace_settings = new_settings
@@ -641,10 +646,10 @@ Shortcut: 'Ctrl+T'"""
             xmin = float(xmin)
         except ValueError:  # don't change anything if the input is not valid
             return
-        xlim = self.canvas.get_xlim()
+        xlim = self.canvas.xlim
         if xmin == round(xlim[0], ROUND_INPUT_LINES) or xmin >= xlim[1]:
             return
-        self.canvas.set_xlim((xmin, xlim[1]))
+        self.canvas.xlim = (xmin, xlim[1])
 
     def update_xmax(self):
         """Updates xmax according to the xmax input line."""
@@ -653,10 +658,10 @@ Shortcut: 'Ctrl+T'"""
             xmax = float(xmax)
         except ValueError:  # don't change anything if the input is not valid
             return
-        xlim = self.canvas.get_xlim()
+        xlim = self.canvas.xlim
         if xmax == round(xlim[1], ROUND_INPUT_LINES) or xmax <= xlim[0]:
             return
-        self.canvas.set_xlim((xlim[0], xmax))
+        self.canvas.xlim = (xlim[0], xmax)
 
     def update_ymin(self):
         """Updates ymin according to the ymin input line."""
@@ -665,10 +670,10 @@ Shortcut: 'Ctrl+T'"""
             ymin = float(ymin)
         except ValueError:  # don't change anything if the input is not valid
             return
-        ylim = self.canvas.get_ylim()
+        ylim = self.canvas.ylim
         if ymin == round(ylim[0], ROUND_INPUT_LINES) or ymin >= ylim[1]:
             return
-        self.canvas.set_ylim((ymin, ylim[1]))
+        self.canvas.ylim = (ymin, ylim[1])
 
     def update_ymax(self):
         """Updates ymax according to the ymax input line."""
@@ -677,14 +682,14 @@ Shortcut: 'Ctrl+T'"""
             ymax = float(ymax)
         except ValueError:  # don't change anything if the input is not valid
             return
-        ylim = self.canvas.get_ylim()
+        ylim = self.canvas.ylim
         if ymax == round(ylim[1], ROUND_INPUT_LINES) or ymax <= ylim[0]:
             return
-        self.canvas.set_ylim((ylim[0], ymax))
+        self.canvas.ylim = (ylim[0], ymax)
 
     def update_displayed_lims(self):
         """Updates all displayed lims according to actual lims."""
-        (xmin, xmax), (ymin, ymax) = self.canvas.get_xlim(), self.canvas.get_ylim()
+        (xmin, xmax), (ymin, ymax) = self.canvas.xlim, self.canvas.ylim
         self.xmin_input.setText(f"{xmin:.{ROUND_INPUT_LINES}f}")
         self.xmax_input.setText(f"{xmax:.{ROUND_INPUT_LINES}f}")
         self.ymin_input.setText(f"{ymin:.{ROUND_INPUT_LINES}f}")

@@ -1,3 +1,11 @@
+# importing Canvas for type annotations like this to prevent circular imports
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.canvas import Canvas
+
+
 from PyQt6.QtWidgets import QMessageBox
 import numpy as np
 
@@ -23,19 +31,20 @@ from src.threading.trace_manager import TraceManager
 class CanvasManager:
     """Plots direction fields using the matplotlib library."""
 
-    def __init__(self, plot, app):
-        self.plot = plot
-        self.app = app
+    def __init__(self, canvas: Canvas):
+        self._canvas = canvas
+
         self.trace_settings = TraceSettings()
         self.trace_manager = TraceManager(
-            self.plot,
-            app.show_stop_tracing_button,
-            app.hide_stop_tracing_button,
+            self._canvas.axes,
+            self._canvas.figure,
+            canvas.app.show_stop_tracing_button,
+            canvas.app.hide_stop_tracing_button,
         )
         self.has_trace_curves_on_plot = False
         self.field_settings = DirectionFieldSettings()
-        self.field_builder = DirectionFieldBuilder(self.plot, self.field_settings)
-        self.field_plotter = DirectionFieldPlotter(self.plot, self.field_settings)
+        self.field_builder = DirectionFieldBuilder(self._canvas.axes, self.field_settings)
+        self.field_plotter = DirectionFieldPlotter(self._canvas.axes, self.field_settings)
 
         self.canvas_locked = False  # True if the canvas can be moved
         self.press = None  # holds x, y of pressed point while moving, else None
@@ -59,22 +68,22 @@ class CanvasManager:
 
     def connect(self):
         """Connect to all the events we need."""
-        self.cidpress = self.plot.figure.canvas.mpl_connect(
+        self.cidpress = self._canvas.figure.canvas.mpl_connect(
             "button_press_event", self.on_press
         )
-        self.cidrelease = self.plot.figure.canvas.mpl_connect(
+        self.cidrelease = self._canvas.figure.canvas.mpl_connect(
             "button_release_event", self.on_release
         )
-        self.cidmotion = self.plot.figure.canvas.mpl_connect(
+        self.cidmotion = self._canvas.figure.canvas.mpl_connect(
             "motion_notify_event", self.on_motion
         )
-        self.cidzoom = self.plot.figure.canvas.mpl_connect("scroll_event", self.on_scroll)
+        self.cidzoom = self._canvas.figure.canvas.mpl_connect("scroll_event", self.on_scroll)
 
     def on_press(self, event):
         """
         Begins canvas movement if the left mouse button was clicked
         """
-        if event.inaxes != self.plot.axes:
+        if event.inaxes != self._canvas.axes:
             return
 
         # left mouse button --> begin canvas movement
@@ -90,12 +99,12 @@ class CanvasManager:
     def on_motion(self, event):
         """Changes axes lims when moving_canvas"""
         # if outside of the matplotlib plot
-        if event.inaxes != self.plot.axes:
+        if event.inaxes != self._canvas.axes:
             # if a direction line is being drawn at the mouse location
             if self.last_mouse_line is not None:
                 # remove line - mouse is out of bounds
                 self.remove_mouse_line_from_plot()
-                self.plot.figure.canvas.draw()
+                self._canvas.figure.canvas.draw()
                 self.last_mouse_line = None
             return
 
@@ -113,21 +122,21 @@ class CanvasManager:
         xlast, ylast = self.press
 
         dx, dy = event.xdata - xlast, event.ydata - ylast
-        self.plot.axes.set_xlim([x - dx for x in self.plot.axes.get_xlim()])
-        self.plot.axes.set_ylim([y - dy for y in self.plot.axes.get_ylim()])
+        self._canvas.axes.set_xlim(*[x - dx for x in self._canvas.axes.get_xlim()])
+        self._canvas.axes.set_ylim(*[y - dy for y in self._canvas.axes.get_ylim()])
 
-        self.app.update_displayed_lims()
+        self._canvas.app.update_displayed_lims()
 
         self.motion_counter += 1
         if self.motion_counter % 3 == 0:
             self.motion_counter = 0
             self.draw_field(keep_cache=True)
         else:
-            self.plot.figure.canvas.draw()
+            self._canvas.figure.canvas.draw()
 
     def on_release(self, event):
         """Stops canvas movement or point movement."""
-        if self.press is None or event.inaxes != self.plot.axes or self.canvas_locked:
+        if self.press is None or event.inaxes != self._canvas.axes or self.canvas_locked:
             return
 
         if self.moving_canvas:
@@ -138,13 +147,13 @@ class CanvasManager:
     def on_scroll(self, event):
         """Zooms in and out based on 'ZOOM' by scaling the x and y lims accordingly."""
 
-        if event.inaxes != self.plot.axes:
+        if event.inaxes != self._canvas.axes:
             return
 
         zoom_in = event.button == "up"
         self.zoom(zoom_in, event.xdata, event.ydata)
 
-    def zoom(self, zoom_in: bool, x=None, y=None):
+    def zoom(self, zoom_in: bool, x: float | None = None, y: float | None = None) -> None:
         """
         Zooms in or out based on the zoom_in parameter by scaling the x and y lims accordingly.
         If x and y are None, zooms to the center of the plot. Else zooms to the point (x, y).
@@ -154,7 +163,7 @@ class CanvasManager:
             return
 
         margin = (ZOOM - 1) / 2  # how much to add on both sides
-        (xmin, xmax), (ymin, ymax) = self.plot.axes.get_xlim(), self.plot.axes.get_ylim()
+        (xmin, xmax), (ymin, ymax) = self._canvas.axes.get_xlim(), self._canvas.axes.get_ylim()
 
         if x is None or y is None:
             x, y = (xmin + xmax) / 2, (ymin + ymax) / 2
@@ -176,15 +185,20 @@ class CanvasManager:
             xlim = (xmin - margin * xleft, xmax + margin * xright)
             ylim = (ymin - margin * ydown, ymax + margin * yup)
 
-        self.plot.axes.set_xlim(xlim)
-        self.plot.axes.set_ylim(ylim)
-        self.app.update_displayed_lims()
+        self._canvas.axes.set_xlim(*xlim)
+        self._canvas.axes.set_ylim(*ylim)
+        self._canvas.app.update_displayed_lims()
         self.draw_field()
 
     def set_new_function(self, new_function_str: str) -> bool:
-        """
-        Checks if the new slope-function is valid and sets it if it is.
-        Returns True if the function is valid, False otherwise.
+        """Sets a new slope-function to be draw if it is valid.
+
+        Args:
+            new_function (str): The new slope-function to be drawn.
+
+        Returns:
+            bool: True if the function is valid and was set, False otherwise.
+        """ """
         """
 
         if new_function_str == self.field_settings.function_string:
@@ -201,7 +215,7 @@ class CanvasManager:
 
         # set new function and redraw the plot
         self.field_settings.function = new_function
-        builder = DirectionFieldBuilder(self.plot, self.field_settings)
+        builder = DirectionFieldBuilder(self._canvas.axes, self.field_settings)
         arrows = builder.get_arrows()
 
         # if the function is invalid, revert and redraw the plot
@@ -219,11 +233,11 @@ class CanvasManager:
         self.trace_manager.stop_tracing()
 
         if not keep_cache:
-            self.field_builder.arrows_cache = {}
+            self.field_builder._arrows_cache = {}
 
         result = self.field_builder.get_arrows()
         if result == None:
-            QMessageBox.critical(self.app, "Error", f"Invalid function.")
+            QMessageBox.critical(self._canvas.app, "Error", f"Invalid function.")
             return
 
         arrows, arrow_centers = result
@@ -238,7 +252,7 @@ class CanvasManager:
 
         if self.drawing_mouse_line:
             self.draw_mouse_line()
-        self.plot.figure.canvas.draw()
+        self._canvas.figure.canvas.draw()
 
     def trace_from_point(self, x, y):
         """Traces the curve from the point (x, y)"""
@@ -259,19 +273,21 @@ class CanvasManager:
         right_tracer = ParallelTracer(
             x,
             y,
+            self._canvas.xlim,
+            self._canvas.ylim,
             SolutionTracer.Direction.Right,
             self.field_settings.function_string,
             settings,
-            self.plot,
         )
 
         left_tracer = ParallelTracer(
             x,
             y,
+            self._canvas.xlim,
+            self._canvas.ylim,
             SolutionTracer.Direction.Left,
             self.field_settings.function_string,
             settings,
-            self.plot,
         )
 
         self.trace_manager.start_new_tracer(right_tracer)
@@ -281,18 +297,18 @@ class CanvasManager:
         """Remove the direction line drawn at the mouse cursor location"""
         if self.last_mouse_line is not None:
             try:
-                self.plot.axes.lines.remove(self.last_mouse_line[0])
+                self._canvas.axes.lines.remove(self.last_mouse_line[0])
             except:
                 return
-            self.plot.figure.canvas.draw()
+            self._canvas.figure.canvas.draw()
 
     def draw_mouse_line(self):
         """Draws a direction line at the mouse cursor location"""
         if self.mouse_pos is None:
             return
 
-        xlim = self.plot.axes.get_xlim()
-        ylim = self.plot.axes.get_ylim()
+        xlim = self._canvas.axes.get_xlim()
+        ylim = self._canvas.axes.get_ylim()
         diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
         vector_len = diagonal / 40 * self.mouse_line_length
 
@@ -313,11 +329,11 @@ class CanvasManager:
         y1 = line_info[1]
         x2 = x1 + line_info[2]
         y2 = y1 + line_info[3]
-        self.last_mouse_line = self.plot.axes.plot(
+        self.last_mouse_line = self._canvas.axes.plot(
             [x1, x2],
             [y1, y2],
             color="r",
             linewidth=self.mouse_line_width,
             solid_capstyle="round",
         )
-        self.plot.figure.canvas.draw()
+        self._canvas.figure.canvas.draw()

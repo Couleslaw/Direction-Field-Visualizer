@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib.axes import Axes
 from matplotlib.colors import Normalize
 from matplotlib import cm
 
@@ -9,14 +10,14 @@ from src.direction_field.direction_field_settings import DirectionFieldSettings
 class DirectionFieldBuilder:
     """Class for calculating arrows and colors for drawing direction fields."""
 
-    def __init__(self, plot, settings: DirectionFieldSettings):
-        self.settings = settings
-        self.arrows_cache = {}
-        self.plot = plot
+    def __init__(self, plot_axes: Axes, settings: DirectionFieldSettings):
+        self._settings = settings
+        self._arrows_cache = {}
+        self._plot_axes = plot_axes
 
     def reset_arrow_cache(self):
         """Resets the arrow cache."""
-        self.arrows_cache = {}
+        self._arrows_cache = {}
 
     def get_arrow(self, x, y, arrow_len, use_cache=True):
         """
@@ -25,11 +26,11 @@ class DirectionFieldBuilder:
         """
 
         # check cache
-        if use_cache and (x, y) in self.arrows_cache:
-            return self.arrows_cache[(x, y)]
+        if use_cache and (x, y) in self._arrows_cache:
+            return self._arrows_cache[(x, y)]
 
         try:
-            der = self.settings.function(x, y)
+            der = self._settings.function(x, y)
             vector = np.array([1, der])
         # this is raised in the case of nonzero/0 --> draw a vertical line
         except FloatingPointError:
@@ -49,7 +50,7 @@ class DirectionFieldBuilder:
 
         res = np.append(center - vector / 2, vector)
         if use_cache:
-            self.arrows_cache[(x, y)] = res
+            self._arrows_cache[(x, y)] = res
         return res
 
     def get_curvature_at(self, x, y, dx):
@@ -63,15 +64,15 @@ class DirectionFieldBuilder:
             y = int(y)
 
         def get_curvature(x, y):
-            dy = self.settings.function(x, y)
+            dy = self._settings.function(x, y)
             d2y = (
-                self.settings.function(x + dx, y + dx * dy)
-                - self.settings.function(x - dx, y - dx * dy)
+                self._settings.function(x + dx, y + dx * dy)
+                - self._settings.function(x - dx, y - dx * dy)
             ) / (2 * dx)
             return d2y / (1 + dy**2) ** 1.5
 
-        xlim = self.plot.axes.get_xlim()
-        ylim = self.plot.axes.get_ylim()
+        xlim = self._plot_axes.get_xlim()
+        ylim = self._plot_axes.get_ylim()
         fix_dx = max(0.002, (xlim[1] - xlim[0]) / 1000)
         fix_dy = max(0.002, (ylim[1] - ylim[0]) / 1000)
         try:
@@ -105,7 +106,7 @@ class DirectionFieldBuilder:
         if second_max == -np.inf:
             second_max = max_val
 
-        limit = max(1, self.settings.num_arrows // 1000)
+        limit = max(1, self._settings.num_arrows // 1000)
         if 1 <= num_max <= limit and max_val > 2 * second_max:
             max_val = second_max
 
@@ -114,12 +115,12 @@ class DirectionFieldBuilder:
     def get_colors(self, points):
         """Returns colors for the arrows based on the curvature of the function at the arrow's center."""
 
-        if not self.settings.show_colors:
+        if not self._settings.show_colors:
             return "black"
 
-        xlim = self.plot.axes.get_xlim()  # save old lims
-        ylim = self.plot.axes.get_ylim()
-        curvature_dx = self.settings.get_curvature_dx()
+        xlim = self._plot_axes.get_xlim()  # save old lims
+        ylim = self._plot_axes.get_ylim()
+        curvature_dx = self._settings.get_curvature_dx()
 
         curvatures = []
         ignore = []
@@ -132,8 +133,8 @@ class DirectionFieldBuilder:
 
         curvatures = self.normalize_curvatures(np.abs(curvatures), ignore)
 
-        exponent = self.settings.get_color_exp()
-        color_map = self.settings.color_map
+        exponent = self._settings.get_color_exp()
+        color_map = self._settings.color_map
         return cm.get_cmap(color_map)(curvatures**exponent)
 
     def get_arrows(self):
@@ -142,18 +143,18 @@ class DirectionFieldBuilder:
         If the slope function is invalid, returns None
         """
 
-        xlim = self.plot.axes.get_xlim()
-        ylim = self.plot.axes.get_ylim()
+        xlim = self._plot_axes.get_xlim()
+        ylim = self._plot_axes.get_ylim()
         diagonal = np.sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
 
-        arrow_len = diagonal * self.settings.get_relative_arrow_length()
-        num_arrows = self.settings.num_arrows
+        arrow_len = diagonal * self._settings.get_relative_arrow_length()
+        num_arrows = self._settings.num_arrows
 
         # space between arrows
         x_step = (xlim[1] - xlim[0]) / num_arrows
         y_step = (
             (ylim[1] - ylim[0]) / num_arrows
-            if self.plot.axes.get_aspect() != 1  # if auto axes
+            if self._plot_axes.get_aspect() != 1  # if auto axes
             else x_step  # if equal_axes
         )
 
@@ -185,22 +186,22 @@ class DirectionFieldBuilder:
 class DirectionFieldPlotter:
     """Class for drawing direction fields."""
 
-    def __init__(self, plot, settings: DirectionFieldSettings):
-        self.plot = plot
+    def __init__(self, plot_axes: Axes, settings: DirectionFieldSettings):
+        self._plot_axes = plot_axes
         self.settings = settings
 
     def draw_field(self, arrows, colors):
         """Draws the direction field on the plot."""
 
         # save old lims
-        xlim = self.plot.axes.get_xlim()
-        ylim = self.plot.axes.get_ylim()
+        xlim = self._plot_axes.get_xlim()
+        ylim = self._plot_axes.get_ylim()
 
         # clear the plot
-        self.plot.axes.cla()
+        self._plot_axes.cla()
 
         # draw the arrows
-        self.plot.axes.quiver(
+        self._plot_axes.quiver(
             arrows[0],
             arrows[1],
             arrows[2],
@@ -214,14 +215,14 @@ class DirectionFieldPlotter:
         )
 
         # set old lims
-        self.plot.axes.set_xlim(xlim)
-        self.plot.axes.set_ylim(ylim)
+        self._plot_axes.set_xlim(*xlim)
+        self._plot_axes.set_ylim(*ylim)
 
         # draw the grid
         if self.settings.show_grid:
-            self.plot.axes.grid(True)
+            self._plot_axes.grid(True)
 
         # draw the axes
         if self.settings.show_axes:
-            self.plot.axes.axvline(0, color="black", linewidth=1)
-            self.plot.axes.axhline(0, color="black", linewidth=1)
+            self._plot_axes.axvline(0, color="black", linewidth=1)
+            self._plot_axes.axhline(0, color="black", linewidth=1)

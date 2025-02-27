@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QKeyEvent, QCloseEvent
 from PyQt6.QtWidgets import QMainWindow, QMessageBox
 from src.gui.visualizer_app import VisualizerApp
 from src.gui.app_style import StyleWindow, StyleSettings
@@ -17,8 +17,12 @@ class MainWindow(QMainWindow):
 
         self.style_settings = StyleSettings()
 
-    def closeEvent(self, event):
+    def closeEvent(self, a0: QCloseEvent | None):
         """Closes the application."""
+
+        # the argument is not called 'event' because the function being overridden has a different signature
+        if (event := a0) is None:
+            return
 
         reply = QMessageBox.question(
             self,
@@ -32,8 +36,13 @@ class MainWindow(QMainWindow):
         else:
             event.ignore()
 
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, a0: QKeyEvent | None):
         """Opens the user guide on F1 press."""
+
+        # the argument is not called 'event' because the function being overridden has a different signature
+        if (event := a0) is None:
+            return
+
         if event.key() == Qt.Key.Key_F1:
             self.open_user_guide()
 
