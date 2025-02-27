@@ -70,7 +70,7 @@ class VisualizerApp(QWidget):
     def open_reset_plot_dialog(self):
         """Opens a dialog to reset the plot and erase all traced curves."""
 
-        if not self.canvas.manager.has_trace_curves_on_plot:
+        if self.canvas.manager.plot_is_empty:
             return
 
         reply = QMessageBox.question(
@@ -157,7 +157,7 @@ class VisualizerApp(QWidget):
 
     def clicked_lock_canvas_button(self):
         """Locks the canvas if it is unlocked and vice versa."""
-        self.canvas.lock_canvas(not self.canvas.manager.canvas_locked)
+        self.canvas.lock_canvas(not self.canvas.manager.__canvas_locked)
 
     def show_stop_tracing_button(self):
         """Shows the stop tracing button."""

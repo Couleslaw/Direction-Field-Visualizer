@@ -35,7 +35,9 @@ asec = lambda x: acos(1 / x)
 acsc = lambda x: asin(1 / x)
 sign = lambda x: int((x > 0)) - int((x < 0))
 
+from typing import Callable
 
-def create_function_from_string(string):
-    """Receives a string that should be a mathematical function f(x,y) and returns a lambda function."""
+
+def create_function_from_string(string: str) -> Callable[[float, float], float]:
+    """Receives a string that should be a mathematical function f(x,y) and returns a lambda expression."""
     return eval(f"lambda x, y: {string}")

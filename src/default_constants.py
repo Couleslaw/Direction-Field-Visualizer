@@ -127,4 +127,7 @@ ROUND_INPUT_LINES = 4
 
 # zoom
 ZOOM = 1.5
+"""The zoom factor for zooming in and out of the plot."""
+
 MAX_ZOOM = 1e-3
+"""If `(xlim[1] - xlim[0])` or `(ylim[1] - ylim[0])` is smaller than this value, the zoom is disabled."""

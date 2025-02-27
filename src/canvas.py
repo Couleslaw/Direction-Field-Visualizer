@@ -25,15 +25,15 @@ class Canvas(FigureCanvas):
             app (VisualizerApp): The app in which the canvas is embedded.
         """
 
-        self._app = app
+        self.__app = app
 
         # create the figure and axes
-        self._figure, self._axes = plt.subplots()
-        super().__init__(self._figure)
+        self.__figure, self.__axes = plt.subplots()
+        super().__init__(self.__figure)
 
         # set default axes limits
-        self._axes.set_xlim(DEFAULT_XMIN, DEFAULT_XMAX)
-        self._axes.set_ylim(DEFAULT_YMIN, DEFAULT_YMAX)
+        self.__axes.set_xlim(DEFAULT_XMIN, DEFAULT_XMAX)
+        self.__axes.set_ylim(DEFAULT_YMIN, DEFAULT_YMAX)
 
         # create the canvas manager
         self.manager = CanvasManager(self)
@@ -42,22 +42,22 @@ class Canvas(FigureCanvas):
     @property
     def figure(self) -> Figure:
         """The matplotlib figure object of the canvas."""
-        return self._figure
+        return self.__figure
 
     @figure.setter
     def figure(self, figure: Figure):
         """The setter for the figure property."""
-        self._figure = figure
+        self.__figure = figure
 
     @property
     def axes(self) -> Axes:
         """The matplotlib axes object of the canvas."""
-        return self._axes
+        return self.__axes
 
     @property
     def app(self) -> VisualizerApp:
         """The app in which the canvas is embedded."""
-        return self._app
+        return self.__app
 
     @property
     def xlim(self) -> Tuple[float, float]:
@@ -66,7 +66,7 @@ class Canvas(FigureCanvas):
 
     @xlim.setter
     def xlim(self, xlim: Tuple[float, float]):
-        self._axes.set_xlim(*xlim)
+        self.__axes.set_xlim(*xlim)
 
     @property
     def ylim(self) -> Tuple[float, float]:
@@ -75,7 +75,7 @@ class Canvas(FigureCanvas):
 
     @ylim.setter
     def ylim(self, ylim: Tuple[float, float]):
-        self._axes.set_ylim(*ylim)
+        self.__axes.set_ylim(*ylim)
 
     def zoom(self, zoom_in: bool) -> None:
         """Zooms in or out of the plot.
@@ -168,7 +168,7 @@ class Canvas(FigureCanvas):
 
     def set_drawing_mouse_line(self, drawing_mouse_line: bool) -> None:
         """Sets whether the 'mouse line' should be drawn or not."""
-        self.manager.drawing_mouse_line = drawing_mouse_line
+        self.manager.set_drawing_mouse_line(drawing_mouse_line)
         if drawing_mouse_line:
             self.manager.draw_mouse_line()
         else:
@@ -191,7 +191,7 @@ class Canvas(FigureCanvas):
     def set_equal_axes(self) -> None:
         """Sets the plot axes to have equal scaling. This is the default setting."""
         self.redraw()
-        self._axes.axis("equal")
+        self.__axes.axis("equal")
         self.redraw()
         self.app.update_displayed_lims()
 
@@ -200,7 +200,7 @@ class Canvas(FigureCanvas):
         Sets the plot axes to have automatic scaling.
         This is used when the user wants to set custom axes limits.
         """
-        self._axes.axis("auto")
+        self.__axes.axis("auto")
         self.redraw()
         self.app.update_displayed_lims()
 

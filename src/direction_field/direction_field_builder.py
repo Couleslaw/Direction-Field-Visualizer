@@ -3,6 +3,8 @@ from matplotlib.axes import Axes
 from matplotlib.colors import Normalize
 from matplotlib import cm
 
+from typing import Dict, Tuple
+
 from math import fabs
 from src.direction_field.direction_field_settings import DirectionFieldSettings
 
@@ -12,22 +14,22 @@ class DirectionFieldBuilder:
 
     def __init__(self, plot_axes: Axes, settings: DirectionFieldSettings):
         self._settings = settings
-        self._arrows_cache = {}
+        self.__arrows_cache: Dict[Tuple[float, float], "Arrow"] = {}
         self._plot_axes = plot_axes
 
-    def reset_arrow_cache(self):
+    def clear_arrow_cache(self):
         """Resets the arrow cache."""
-        self._arrows_cache = {}
+        self.__arrows_cache = {}
 
-    def get_arrow(self, x, y, arrow_len, use_cache=True):
+    def get_arrow(self, x, y, arrow_len, use_cache=True) -> "Arrow":
         """
         x, y: center of the arrow
         returns: [s1, s2, v1, v2] where (s1, s2) is the start of the arrow and (v1, v2) is the vector of the arrow
         """
 
         # check cache
-        if use_cache and (x, y) in self._arrows_cache:
-            return self._arrows_cache[(x, y)]
+        if use_cache and (x, y) in self.__arrows_cache:
+            return self.__arrows_cache[(x, y)]
 
         try:
             der = self._settings.function(x, y)
@@ -50,7 +52,7 @@ class DirectionFieldBuilder:
 
         res = np.append(center - vector / 2, vector)
         if use_cache:
-            self._arrows_cache[(x, y)] = res
+            self.__arrows_cache[(x, y)] = res
         return res
 
     def get_curvature_at(self, x, y, dx):
