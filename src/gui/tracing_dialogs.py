@@ -419,17 +419,21 @@ What if there are multiple singularities? Just multiply them together!
 
     def __update_y_margin(self) -> None:
         """Updates y margin according to the y_margin input line."""
-        y_margin = self.__y_margin_input.text()
-        try:
-            y_margin = float(y_margin)
-            if y_margin < 0:
-                y_margin = 0
-                self.__y_margin_input.setText(str(y_margin))
-            if y_margin > MAX_TRACE_Y_MARGIN:
-                y_margin = MAX_TRACE_Y_MARGIN
-                self.__y_margin_input.setText(str(y_margin))
-        except ValueError:  # don't change anything if the input is not valid
+
+        # get y_margin from the input line
+        y_margin = try_get_value_from_string(self.__y_margin_input.text())
+        if y_margin is None:
             return
+
+        # y_margin should be between 0 and MAX_TRACE_Y_MARGIN
+        if y_margin < 0:
+            y_margin = 0
+            self.__y_margin_input.setText(str(y_margin))
+        if y_margin > MAX_TRACE_Y_MARGIN:
+            y_margin = MAX_TRACE_Y_MARGIN
+            self.__y_margin_input.setText(str(y_margin))
+
+        # update y_margin in settings
         self.__settings.y_margin = y_margin
 
     def __open_color_dialog(self) -> None:

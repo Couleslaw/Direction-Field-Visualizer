@@ -8,20 +8,14 @@ from src.default_constants import TRACE_NUM_SEGMENTS_IN_DIAGONAL
 from src.tracing.numerical_methods import find_first_intersection
 from src.tracing.trace_settings import TraceSettings
 
-from typing import Tuple, Iterator, TypeAlias, Any
-
-
-Direction: TypeAlias = int
-"""Type alias for tracing direction."""
-
-Strategy: TypeAlias = int
-"""Type alias for singularity handling strategy"""
+from typing import Tuple, Iterator, Any
+from enum import Enum
 
 
 class SolutionTracer:
     """Class for tracing a solution curve with an initial point and a given slope function."""
 
-    class Direction:
+    class Direction(Enum):
         """Tracing direction constants."""
 
         Right = 1
@@ -29,7 +23,7 @@ class SolutionTracer:
         Up = 1
         Down = -1
 
-    class Strategy:
+    class Strategy(Enum):
         """Singularity handling return codes."""
 
         Stop = 1
@@ -90,7 +84,7 @@ class SolutionTracer:
         self.__max_line_segment_length = self.__diagonal_len / TRACE_NUM_SEGMENTS_IN_DIAGONAL
 
         # private fields for tracing
-        self.__direction: Direction
+        self.__direction: SolutionTracer.Direction
         """Tracing direction. Either SolutionTracer.Direction.Right or SolutionTracer.Direction.Left."""
         self.__slope: float
         """Current slope of the solution curve."""
@@ -425,7 +419,7 @@ class SolutionTracer:
 
         # starting point
         point = np.array([x0, y0])
-        current_line_segment_length = 0
+        current_line_segment_length: float = 0
         line_segment_start = point.copy()
 
         def get_y_step(y: float) -> float:
@@ -437,7 +431,7 @@ class SolutionTracer:
             else:
                 dist = fabs(y - self.__ylim[0]) if y < self.__ylim[0] else fabs(y - self.__ylim[1])
                 step = max(dist / 100, self.__max_step)
-            return step * direction
+            return step * direction.value
 
         while True:
             # if y out of bounds in the desired direction --> break
@@ -596,17 +590,17 @@ class SolutionTracer:
 
         # the number of times in a row the tracing continued OK after a singularity was detected
         # it is used in automatic detection - if it continues OK for a while, it is probably safe
-        continue_count = 0
+        continue_count: int = 0
 
         # length of the current curve segment
-        current_curve_segment_length = 0
+        current_curve_segment_length: float = 0
         line_segment_start = point.copy()
 
         while True:
             try:
                 # calculate the slope at the current point
                 self.__slope = self.__slope_func(point[0], point[1])
-                self.__vector = np.array([1, self.__slope], dtype=np.float64) * direction
+                self.__vector = np.array([1, self.__slope], dtype=np.float64) * direction.value
             except:
                 # slope_func is unsafe
                 break
@@ -642,7 +636,7 @@ class SolutionTracer:
                         yield (point[0], point[1])
                         return
 
-                    line_direction = sign(self.__slope) * direction
+                    line_direction = SolutionTracer.Direction(sign(self.__slope) * direction.value)
 
                     yield from self.__create_vertical_line(point[0], point[1], line_direction)
                     return

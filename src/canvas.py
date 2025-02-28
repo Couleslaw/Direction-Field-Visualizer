@@ -1,6 +1,7 @@
 # importing VisualizerApp for type annotations like this to prevent circular imports
 from __future__ import annotations
 from typing import Tuple, TYPE_CHECKING
+from math import sqrt
 
 if TYPE_CHECKING:
     from src.gui.visualizer_app import VisualizerApp
@@ -196,8 +197,28 @@ class Canvas(FigureCanvas):
 
     def set_equal_axes(self) -> None:
         """Sets the plot axes to have equal scaling. Redraws the plot after."""
-        self.redraw()
+
+        # we will scale the axes so that the diagonal length and center of the plot is the same as before, but the axes are equal
+
+        old_diagonal = sqrt((self.xlim[1] - self.xlim[0]) ** 2 + (self.ylim[1] - self.ylim[0]) ** 2)
+
         self.__axes.axis("equal")
+        self.redraw()
+
+        # r = dx / dy  -->  dx = r * dy
+        ratio = (self.xlim[1] - self.xlim[0]) / (self.ylim[1] - self.ylim[0])
+
+        # diagonal^2 = dx^2 + dy^2 = dy^2 * (r^2 + 1)  --> dy = diagonal / sqrt(r^2 + 1)
+        dy = old_diagonal / sqrt(ratio**2 + 1)
+        dx = dy * ratio
+
+        x_center = (self.xlim[1] + self.xlim[0]) / 2
+        y_center = (self.ylim[1] + self.ylim[0]) / 2
+
+        # set the new axes limits
+        self.xlim = (x_center - dx / 2, x_center + dx / 2)
+        self.ylim = (y_center - dy / 2, y_center + dy / 2)
+
         self.redraw()
         self.app.update_displayed_axes_limits()
 
@@ -206,7 +227,11 @@ class Canvas(FigureCanvas):
         Sets the plot axes to have automatic scaling. Redraws the plot after.
         This is used when the user wants to set custom axes limits.
         """
+        old_xlim = self.xlim
+        old_ylim = self.ylim
         self.__axes.axis("auto")
+        self.xlim = old_xlim
+        self.ylim = old_ylim
         self.redraw()
         self.app.update_displayed_axes_limits()
 

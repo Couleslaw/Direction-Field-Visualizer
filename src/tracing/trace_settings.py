@@ -1,4 +1,5 @@
 from __future__ import annotations
+from enum import Enum
 
 import numpy as np
 from src.math_functions import create_function_from_string
@@ -6,13 +7,11 @@ from src.default_constants import *
 
 from typing import Dict, Tuple, List, TypeAlias
 
-Strategy: TypeAlias = int
-
 
 class TraceSettings:
     """Class for storing settings for tracing a solutions of given differential equation."""
 
-    class Strategy:
+    class Strategy(Enum):
         """Strategy of singularity detection"""
 
         Automatic = 0
@@ -31,7 +30,7 @@ class TraceSettings:
         self.__singularity_equations: Dict[str, str] = {"x/y": "y"}
 
         # remembers which strategy to use for detecting singularities for different slope function
-        self.__preferred_detection: Dict[str, Strategy] = dict()
+        self.__preferred_detection: Dict[str, TraceSettings.Strategy] = dict()
 
     def copy(self) -> TraceSettings:
         """Returns a copy if itself"""

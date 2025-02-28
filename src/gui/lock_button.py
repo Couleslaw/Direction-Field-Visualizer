@@ -7,15 +7,14 @@ from PyQt6.QtWidgets import QPushButton, QWidget
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt
 
-from typing import override, TypeAlias
-
-LockState: TypeAlias = int
+from typing import override
+from enum import Enum
 
 
 class LockButton(QPushButton):
     """A button that represents a two state lock."""
 
-    class LockState:
+    class LockState(Enum):
         """Class to represent the state of the lock button."""
 
         Locked = 0

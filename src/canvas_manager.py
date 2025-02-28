@@ -20,10 +20,8 @@ from src.tracing.trace_settings import TraceSettings
 from src.tracing.solution_tracer import SolutionTracer
 
 from src.direction_field.direction_field_settings import DirectionFieldSettings
-from src.direction_field.direction_field_builder import (
-    DirectionFieldPlotter,
-    DirectionFieldBuilder,
-)
+from src.direction_field.direction_field_builder import DirectionFieldPlotter, DirectionFieldBuilder
+
 
 from src.threading.parallel_tracer import ParallelTracer
 from src.threading.trace_manager import TraceManager

@@ -25,14 +25,13 @@ from src.gui.stop_button import StopButton
 from src.gui.component_builder import QtComponentBuilder
 from src.canvas import Canvas
 from src.default_constants import *
+from src.math_functions import try_get_value_from_string
 
 from typing import override
 
 
 class VisualizerApp(QWidget):
     """Creates the GUI using the PyQt6 library."""
-
-    equal_axes = True  # True if the 'Equal axes' checkbox is checked
 
     def __init__(self) -> None:
         super().__init__()
@@ -215,7 +214,7 @@ class VisualizerApp(QWidget):
             layout=layout,
         )
 
-        self.__equalAxes.setChecked(VisualizerApp.equal_axes)
+        self.__equalAxes.setChecked(True)
 
         # create the 'center x' button
         self.__center_x_button = QPushButton("Center &X")
@@ -470,25 +469,22 @@ Shortcut: 'Ctrl+T'"""
             self.__canvas.figure.savefig(file_name, bbox_inches="tight")
 
     def __execute_graph_function(self) -> None:
-        """Plots the function given in the function input line."""
+        """Plots the function given in the function input line and updates the displayed axes limits."""
 
         func_str = self.__function_input.text()
         if not self.__canvas.set_new_function(func_str):
             QMessageBox.critical(self, "Error", f"Invalid function.")
 
+        self.update_displayed_axes_limits()
+
     def __checked_equalAxes(self, checked: bool) -> None:
         """Turns equal_axes on and off."""
-        VisualizerApp.equal_axes = not VisualizerApp.equal_axes
         if checked:
             self.__canvas.set_equal_axes()
             self.__enable_input_lines(False)
         else:
             self.__canvas.set_auto_axes()
             self.__enable_input_lines(True)
-            self.__update_xmin()
-            self.__update_xmax()
-            self.__update_ymin()
-            self.__update_ymax()
 
     def __enable_input_lines(self, enabled: bool) -> None:
         """Enables or disables all of the input lines for x and y limits."""
@@ -570,10 +566,8 @@ Shortcut: 'Ctrl+T'"""
 
     def __update_xmin(self) -> None:
         """Updates xmin according to the xmin input line."""
-        xmin = self.__xmin_input.text()
-        try:
-            xmin = float(xmin)
-        except ValueError:  # don't change anything if the input is not valid
+        xmin = try_get_value_from_string(self.__xmin_input.text())
+        if xmin is None:
             return
         xlim = self.__canvas.xlim
         if xmin == round(xlim[0], ROUND_INPUT_LINES) or xmin >= xlim[1]:
@@ -582,10 +576,8 @@ Shortcut: 'Ctrl+T'"""
 
     def __update_xmax(self) -> None:
         """Updates xmax according to the xmax input line."""
-        xmax = self.__xmax_input.text()
-        try:
-            xmax = float(xmax)
-        except ValueError:  # don't change anything if the input is not valid
+        xmax = try_get_value_from_string(self.__xmax_input.text())
+        if xmax is None:
             return
         xlim = self.__canvas.xlim
         if xmax == round(xlim[1], ROUND_INPUT_LINES) or xmax <= xlim[0]:
@@ -594,10 +586,8 @@ Shortcut: 'Ctrl+T'"""
 
     def __update_ymin(self) -> None:
         """Updates ymin according to the ymin input line."""
-        ymin = self.__ymin_input.text()
-        try:
-            ymin = float(ymin)
-        except ValueError:  # don't change anything if the input is not valid
+        ymin = try_get_value_from_string(self.__ymin_input.text())
+        if ymin is None:
             return
         ylim = self.__canvas.ylim
         if ymin == round(ylim[0], ROUND_INPUT_LINES) or ymin >= ylim[1]:
@@ -606,10 +596,8 @@ Shortcut: 'Ctrl+T'"""
 
     def __update_ymax(self) -> None:
         """Updates ymax according to the ymax input line."""
-        ymax = self.__ymax_input.text()
-        try:
-            ymax = float(ymax)
-        except ValueError:  # don't change anything if the input is not valid
+        ymax = try_get_value_from_string(self.__ymax_input.text())
+        if ymax is None:
             return
         ylim = self.__canvas.ylim
         if ymax == round(ylim[1], ROUND_INPUT_LINES) or ymax <= ylim[0]:
@@ -626,18 +614,19 @@ Shortcut: 'Ctrl+T'"""
 
     def __update_num_arrows(self) -> None:
         """Updates the number of arrows according to the input line."""
-        num_arrows = self.__num_arrows_input.text()
-        try:
-            num_arrows = int(num_arrows)
-        except ValueError:  # don't change anything if the input is not valid
+        num_arrows = try_get_value_from_string(self.__num_arrows_input.text())
+        if num_arrows is None:
             return
+
         if num_arrows < MIN_NUM_ARROWS or num_arrows > MAX_NUM_ARROWS:
             num_arrows = np.clip(num_arrows, MIN_NUM_ARROWS, MAX_NUM_ARROWS)
             self.__num_arrows_input.setText(str(num_arrows))
         if num_arrows < 1:
             num_arrows = 1
             self.__num_arrows_input.setText(str(num_arrows))
-        self.__canvas.set_num_arrows(num_arrows)
+
+        self.__num_arrows_input.setText(str(int(num_arrows)))
+        self.__canvas.set_num_arrows(int(num_arrows))
 
     def __add_five_arrows(self) -> None:
         """Adds 5 arrows."""

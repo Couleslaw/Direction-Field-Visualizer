@@ -13,12 +13,12 @@ from src.direction_field.direction_field_settings import DirectionFieldSettings
 class DirectionFieldBuilder:
     """Class for calculating arrows and colors for drawing direction fields."""
 
-    def __init__(self, plot_axes: Axes, settings: DirectionFieldSettings):
+    def __init__(self, plot_axes: Axes, settings: DirectionFieldSettings) -> None:
         self.__settings = settings
         self.__arrows_cache: Dict[Tuple[float, float], NDArray[np.float64]] = {}
         self.__plot_axes = plot_axes
 
-    def clear_arrow_cache(self):
+    def clear_arrow_cache(self) -> None:
         """Clears the arrow cache."""
         self.__arrows_cache = {}
 
@@ -72,7 +72,7 @@ class DirectionFieldBuilder:
 
         return result
 
-    def get_curvature_at(self, x: float, y: float, dx: float) -> float:
+    def __get_curvature_at(self, x: float, y: float, dx: float) -> float:
         """
         Returns the curvature of the function at the point (x, y).
 
@@ -118,7 +118,7 @@ class DirectionFieldBuilder:
                     # if both fail, return 0
                     return 0
 
-    def normalize_curvatures(
+    def __normalize_curvatures(
         self, curvatures: NDArray[np.float64], off_screen: Sequence[bool]
     ) -> NDArray[np.float64]:
         """Normalizes curvatures to values to `[0,1]`. When the max curvature for normalization is searched for,
@@ -184,13 +184,13 @@ class DirectionFieldBuilder:
         curvatures: list[float] = []
         off_screen: list[bool] = []
         for x, y in points:
-            curvatures.append(self.get_curvature_at(x, y, curvature_dx))
+            curvatures.append(self.__get_curvature_at(x, y, curvature_dx))
             off_screen.append(
                 False if (xlim[0] <= x <= xlim[1] and ylim[0] <= y <= ylim[1]) else True
             )
 
         # normalize and scale curvatures before mapping them to colors
-        normalized_curvatures = self.normalize_curvatures(np.abs(curvatures), off_screen)
+        normalized_curvatures = self.__normalize_curvatures(np.abs(curvatures), off_screen)
         exponent = self.__settings.color_exp
         color_map = self.__settings.color_map
         return cm.get_cmap(color_map)(normalized_curvatures**exponent)

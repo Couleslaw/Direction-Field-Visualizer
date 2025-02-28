@@ -1,19 +1,5 @@
 from src.math_functions import create_function_from_string, sqrt
-from src.default_constants import (
-    DEFAULT_FUNCTION,
-    DEFAULT_ARROW_LENGTH,
-    DEFAULT_ARROW_WIDTH,
-    MIN_ARROW_WIDTH,
-    MAX_ARROW_WIDTH,
-    DEFAULT_NUM_ARROWS,
-    DEFAULT_COLOR_MAP,
-    DEFAULT_COLOR_PRECISION,
-    DEFAULT_COLOR_CONTRAST,
-    MIN_COLOR_CONTRAST,
-    MAX_COLOR_CONTRAST,
-    MIN_COLOR_EXP,
-    MAX_COLOR_EXP,
-)
+from src.default_constants import *
 from typing import Tuple, Callable, Any
 
 
@@ -23,7 +9,7 @@ class DirectionFieldSettings:
     # base of an exponential used to scale the curvatures before converting to colors
     __color_exp_base = 1.4
 
-    def __init__(self):
+    def __init__(self) -> None:
         # arrow settings
         self.__arrow_length: int = DEFAULT_ARROW_LENGTH
         self.__arrow_width: int = DEFAULT_ARROW_WIDTH
@@ -49,9 +35,7 @@ class DirectionFieldSettings:
         """Sets new arrow length based on the displayed number."""
         self.__arrow_length = length
 
-    def calculate_arrow_length(
-        self, xlim: Tuple[float, float], ylim: Tuple[float, float]
-    ) -> float:
+    def calculate_arrow_length(self, xlim: Tuple[float, float], ylim: Tuple[float, float]) -> float:
         """Returns the arrow length given limits of the axes."""
         diagonal = sqrt((xlim[1] - xlim[0]) ** 2 + (ylim[1] - ylim[0]) ** 2)
         return diagonal * self.__arrow_length / 200
@@ -71,8 +55,7 @@ class DirectionFieldSettings:
     def color_exp(self) -> float:
         """Returns the exponent for the color contrast."""
         a = (MAX_COLOR_EXP - MIN_COLOR_EXP) / (
-            self.__color_exp_base**MAX_COLOR_CONTRAST
-            - self.__color_exp_base**MIN_COLOR_CONTRAST
+            self.__color_exp_base**MAX_COLOR_CONTRAST - self.__color_exp_base**MIN_COLOR_CONTRAST
         )
         b = MIN_COLOR_EXP - a * self.__color_exp_base**MIN_COLOR_CONTRAST
         return a * self.__color_exp_base**self.color_contrast + b

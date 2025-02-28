@@ -1,7 +1,7 @@
 from PyQt6.QtCore import pyqtSignal, QObject, QMutex
 from typing import List, Tuple
 
-from src.tracing.solution_tracer import SolutionTracer, Direction
+from src.tracing.solution_tracer import SolutionTracer
 from src.tracing.trace_settings import TraceSettings, CurveInfo
 
 
@@ -16,7 +16,7 @@ class ParallelTracer(QObject):
         y: float,
         xlim: Tuple[float, float],
         ylim: Tuple[float, float],
-        direction: Direction,
+        direction: SolutionTracer.Direction,
         slope_function_str: str,
         trace_settings: TraceSettings,
     ) -> None:
