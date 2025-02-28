@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 from src.math_functions import create_function_from_string
 
@@ -21,100 +23,79 @@ from src.default_constants import (
     MIN_TRACE_PRECISION,
 )
 
+from typing import Dict, Tuple, List, TypeAlias
+
+Strategy: TypeAlias = int
+
 
 class TraceSettings:
     """Class for storing settings for tracing a solutions of given differential equation."""
 
     class Strategy:
+        """Strategy of singularity detection"""
+
         Automatic = 0
         Manual = 1
         None_ = 2
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.line_color = DEFAULT_TRACE_COLOR
-        self.line_width = DEFAULT_TRACE_LINES_WIDTH
-        self.y_margin = DEFAULT_TRACE_Y_MARGIN
+        self.displayed_line_width: int = DEFAULT_TRACE_LINES_WIDTH
+        self.y_margin: float = DEFAULT_TRACE_Y_MARGIN
         self.trace_precision = DEFAULT_TRACE_PRECISION
         self.singularity_min_slope = DEFAULT_SINGULARITY_MIN_SLOPE
         self.show_advanced_settings = False
-        # slope function string -> singularity equation string
-        self.singularity_equations = {"x/y": "y"}
-        self.preferred_detection = dict()  # slope function string -> detection strategy
 
-    def copy(self):
+        # slope function string -> singularity equation string
+        self.__singularity_equations: Dict[str, str] = {"x/y": "y"}
+
+        # remembers which strategy to use for detecting singularities for different slope function
+        self.__preferred_detection: Dict[str, Strategy] = dict()
+
+    def copy(self) -> TraceSettings:
         """Returns a copy if itself"""
         new = TraceSettings()
         new.line_color = self.line_color
-        new.line_width = self.line_width
-        new.y_margin = self.y_margin
+        new.displayed_line_width = self.displayed_line_width
         new.trace_precision = self.trace_precision
+        new.y_margin = self.y_margin
         new.singularity_min_slope = self.singularity_min_slope
         new.show_advanced_settings = self.show_advanced_settings
-        new.singularity_equations = self.singularity_equations.copy()
-        new.preferred_detection = self.preferred_detection.copy()
+        new.__singularity_equations = self.__singularity_equations.copy()
+        new.__preferred_detection = self.__preferred_detection.copy()
         return new
 
-    def has_singularity_for(self, equation: str):
-        """Returns True if there is a singularity equation for the given equation."""
-        return equation in self.singularity_equations
+    def get_singularity_equation_for(self, slope_function: str) -> str | None:
+        """Returns the singularity equation for th given slope function, or None if it doesn't exist."""
+        return self.__singularity_equations.get(slope_function)
 
-    def set_preferred_detection_for(self, slope_func: str, detection: int):
-        assert detection in [
-            self.Strategy.Automatic,
-            self.Strategy.Manual,
-            self.Strategy.None_,
-        ]
-        self.preferred_detection[slope_func] = detection
+    def set_new_singularity_equation(
+        self,
+        slope_func_str: str,
+        equation_str: str,
+        xlim: Tuple[float, float],
+        ylim: Tuple[float, float],
+        num_random_checks: int = 20,
+    ) -> bool:
+        """Checks if the equation is valid by trying to evaluate it at random points.
+        If it seems valid, the function is set and True is returned. False is returned otherwise.
 
-    def get_preferred_detection_for(self, slope_func: str):
-        return self.preferred_detection.get(slope_func, self.Strategy.Automatic)
+        Args:
+            slope_func_str (str): String representation of the slope function which the equation is for.
+            equation_str (str): String representation of the singularity equation.
+            xlim (Tuple[float, float]): Limits of the x-axis.
+            ylim (Tuple[float, float]): Limits of the y-axis.
+            num_random_checks (int, optional): The number of random points the new equation will be evaluated at. Defaults to 20.
 
-    def get_trace_dx_granularity(self):
-        """Converts trace precision to granularity, which is then used to calculate dx."""
-        return MIN_TRACE_DX_GRANULARITY + (
-            MAX_TRACE_DX_GRANULARITY - MIN_TRACE_DX_GRANULARITY
-        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
-            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
-        )
-
-    def get_trace_min_step_granularity(self):
-        """Converts trace precision to granularity, which is then used to calculate min_step."""
-        return MIN_TRACE_MIN_STEP_GRANULARITY + (
-            MAX_TRACE_MIN_STEP_GRANULARITY - MIN_TRACE_MIN_STEP_GRANULARITY
-        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
-            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
-        )
-
-    def get_trace_max_step_granularity(self):
-        """Converts trace precision to granularity, which is then used to calculate max_step."""
-        return MIN_TRACE_MAX_STEP_GRANULARITY + (
-            MAX_TRACE_MAX_STEP_GRANULARITY - MIN_TRACE_MAX_STEP_GRANULARITY
-        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
-            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
-        )
-
-    def get_singularity_alert_dist_granularity(self):
-        """Converts trace precision to granularity, which is then used to calculate singularity_alert_dist."""
-        return MIN_SINGULARITY_ALERT_DIST_GRANULARITY + (
-            MAX_SINGULARITY_ALERT_DIST_GRANULARITY - MIN_SINGULARITY_ALERT_DIST_GRANULARITY
-        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
-            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
-        )
-
-    def get_line_width(self):
-        """Converts line width entered by the user to a value that is then actually used."""
-        # mapping min->1, max->7
-        return 1 + 6 * (self.line_width - MIN_TRACE_LINES_WIDTH) / (
-            MAX_TRACE_LINES_WIDTH - MIN_TRACE_LINES_WIDTH
-        )
-
-    def set_new_singularity_equation(self, slope_func, equation_str, xlim, ylim) -> bool:
-        """Checks if the equation is valid and sets it if it is. Returns True if the equation is valid."""
+        Returns:
+            success (bool): True if the equation seems valid; False otherwise.
+            Returning True doesn't guarantee that the equation is valid, but False guarantees that it is not.
+        """
 
         try:
             func = create_function_from_string(equation_str)
             # try to evaluate the equation at a few random points
-            for _ in range(20):
+            for _ in range(num_random_checks):
                 try:
                     x = np.random.uniform(xlim[0], xlim[1])
                     y = np.random.uniform(ylim[0], ylim[1])
@@ -128,5 +109,66 @@ class TraceSettings:
             return False
 
         # the equation seems valid --> accept
-        self.singularity_equations[slope_func] = equation_str
+        self.__singularity_equations[slope_func_str] = equation_str
         return True
+
+    def get_preferred_detection_for(self, slope_func: str) -> Strategy:
+        """Returns the preferred detection strategy for the given function."""
+        return self.__preferred_detection.get(slope_func, self.Strategy.Automatic)
+
+    def set_preferred_detection_for(self, slope_func: str, detection: Strategy) -> None:
+        """Remembers the preferred detection strategy for the given function."""
+        assert detection in [
+            self.Strategy.Automatic,
+            self.Strategy.Manual,
+            self.Strategy.None_,
+        ]
+        self.__preferred_detection[slope_func] = detection
+
+    @property
+    def trace_dx_granularity(self) -> float:
+        """Converts trace precision to granularity, which is then used to calculate dx."""
+        return MIN_TRACE_DX_GRANULARITY + (
+            MAX_TRACE_DX_GRANULARITY - MIN_TRACE_DX_GRANULARITY
+        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
+            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
+        )
+
+    @property
+    def trace_min_step_granularity(self) -> float:
+        """Converts trace precision to granularity, which is then used to calculate min_step."""
+        return MIN_TRACE_MIN_STEP_GRANULARITY + (
+            MAX_TRACE_MIN_STEP_GRANULARITY - MIN_TRACE_MIN_STEP_GRANULARITY
+        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
+            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
+        )
+
+    @property
+    def trace_max_step_granularity(self) -> float:
+        """Converts trace precision to granularity, which is then used to calculate max_step."""
+        return MIN_TRACE_MAX_STEP_GRANULARITY + (
+            MAX_TRACE_MAX_STEP_GRANULARITY - MIN_TRACE_MAX_STEP_GRANULARITY
+        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
+            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
+        )
+
+    @property
+    def singularity_alert_dist_granularity(self) -> float:
+        """Converts trace precision to granularity, which is then used to calculate singularity_alert_dist."""
+        return MIN_SINGULARITY_ALERT_DIST_GRANULARITY + (
+            MAX_SINGULARITY_ALERT_DIST_GRANULARITY - MIN_SINGULARITY_ALERT_DIST_GRANULARITY
+        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
+            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
+        )
+
+    @property
+    def line_width(self) -> float:
+        """Converts line width entered by the user to a value that is then actually used."""
+        # mapping min->1, max->7
+        return 1 + 6 * (self.displayed_line_width - MIN_TRACE_LINES_WIDTH) / (
+            MAX_TRACE_LINES_WIDTH - MIN_TRACE_LINES_WIDTH
+        )
+
+
+CurveInfo: TypeAlias = Tuple[TraceSettings, List[Tuple[float, float]]]
+"""Settings of the curve + the curve itself given as a list of coordinates."""

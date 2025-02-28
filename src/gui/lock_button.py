@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 import os
 
@@ -7,19 +9,17 @@ from PyQt6.QtWidgets import QPushButton, QWidget
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt
 
-
-class LockState:
-    """Class to represent the state of the lock button."""
-
-    Locked = 0
-    Unlocked = 1
-
-
-lock_state: TypeAlias = int
+LockState: TypeAlias = int
 
 
 class LockButton(QPushButton):
     """A button that represents a two state lock."""
+
+    class LockState:
+        """Class to represent the state of the lock button."""
+
+        Locked = 0
+        Unlocked = 1
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -62,11 +62,11 @@ class LockButton(QPushButton):
         # make the shortcut visible in the tooltip
         self.shortcut_str = f"\n{key}"
 
-    def setState(self, state: lock_state) -> None:
+    def setState(self, state: LockState) -> None:
         """Lock or unlock the button."""
-        assert state in [LockState.Locked, LockState.Unlocked]
+        assert state in [self.LockState.Locked, self.LockState.Unlocked]
         self.state = state
-        if state == LockState.Locked:
+        if state == self.LockState.Locked:
             self.setIcon(self.locked_icon)
             self.setToolTip(self.locked_tooltip + self.shortcut_str)
         else:
@@ -75,7 +75,7 @@ class LockButton(QPushButton):
 
     def on_clicked(self) -> None:
         """Changes the state of the button."""
-        if self.state == LockState.Locked:
-            self.setState(LockState.Unlocked)
+        if self.state == self.LockState.Locked:
+            self.setState(self.LockState.Unlocked)
         else:
-            self.setState(LockState.Locked)
+            self.setState(self.LockState.Locked)

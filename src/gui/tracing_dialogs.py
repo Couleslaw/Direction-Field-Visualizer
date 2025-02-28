@@ -20,9 +20,13 @@ from PyQt6.QtWidgets import (
 from src.tracing.trace_settings import TraceSettings
 from src.default_constants import *
 
+from typing import Tuple, override
+
 
 class CoordinateDialog(QDialog):
-    def __init__(self, parent=None):
+    """Dialog window for inputting X and Y coordinates"""
+
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
 
         self.setWindowTitle("Input Coordinates")
@@ -60,16 +64,34 @@ class CoordinateDialog(QDialog):
 
 
 class TraceSettingsDialog(QDialog):
-    def __init__(self, parent, trace_settings: TraceSettings, slope_function: str, xlim, ylim):
+    """Dialog window for changing trace settings."""
+
+    def __init__(
+        self,
+        parent: QWidget | None,
+        trace_settings: TraceSettings,
+        slope_function: str,
+        xlim: Tuple[float, float],
+        ylim: Tuple[float, float],
+    ) -> None:
+        """Creates the dialog window.
+
+        Args:
+            parent (QWidget | None): Parent widget.
+            trace_settings (TraceSettings): Settings object which will be changed based on user input.
+            slope_function (str): String representation of the current slope function.
+            xlim (Tuple[float, float]): Limits of the x-axis.
+            ylim (Tuple[float, float]): Limits of the y-axis.
+        """
         super().__init__(parent)
 
         self.setWindowTitle("Trace Settings")
         self.setFixedWidth(265)
-        self.settings = trace_settings
-        self.slope_function_str = slope_function
-        self.xlim = xlim
-        self.ylim = ylim
-        self.selected_color = QColor(self.settings.line_color)
+        self.__settings = trace_settings
+        self.__slope_function_str = slope_function
+        self.__xlim = xlim
+        self.__ylim = ylim
+        self.__selected_color = QColor(self.__settings.line_color)
 
         # Layout for dialog window
         layout = QVBoxLayout()
@@ -81,7 +103,7 @@ class TraceSettingsDialog(QDialog):
         # Show/Hide button for advanced settings
         self.toggle_button = QPushButton(
             "Hide advanced settings"
-            if self.settings.show_advanced_settings
+            if self.__settings.show_advanced_settings
             else "Show advanced settings"
         )
         self.toggle_button.clicked.connect(self.toggle_advanced_settings)
@@ -101,20 +123,20 @@ class TraceSettingsDialog(QDialog):
         self.button_box.rejected.connect(self.reject)
         layout.addWidget(self.button_box)
 
-    def create_basic_settings(self, layout):
+    def create_basic_settings(self, layout: QVBoxLayout) -> None:
         """Creates the trace-line-width slider and color-picker button."""
         # create the 'trace line width' slider
         self.slider_w = QSlider(Qt.Orientation.Horizontal)
         self.slider_w.setMinimum(MIN_TRACE_LINES_WIDTH)
         self.slider_w.setMaximum(MAX_TRACE_LINES_WIDTH)
-        self.slider_w.setValue(self.settings.line_width)
+        self.slider_w.setValue(self.__settings.displayed_line_width)
         self.slider_w.setMinimumWidth(150)
         self.slider_w.setTickInterval(1)
         self.slider_w.setSingleStep(1)
         self.slider_w.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_w.valueChanged.connect(self.changed_trace_lines_width)
         self.label_w = QLabel()
-        self.label_w.setText(f"  &Trace line width: {self.settings.line_width}   ")
+        self.label_w.setText(f"  &Trace line width: {self.__settings.displayed_line_width}   ")
         self.label_w.setBuddy(self.slider_w)
         form = QVBoxLayout()
         form.addWidget(self.label_w)
@@ -138,7 +160,7 @@ class TraceSettingsDialog(QDialog):
 
         layout.addLayout(color_layout)
 
-    def create_advanced_settings(self, layout):
+    def create_advanced_settings(self, layout: QVBoxLayout) -> None:
         """Creates the advanced settings section.
         - trace precision slider
         - singularity detection radio buttons
@@ -151,20 +173,20 @@ class TraceSettingsDialog(QDialog):
         self.slider_p = QSlider(Qt.Orientation.Horizontal)
         self.slider_p.setMinimum(MIN_TRACE_PRECISION)
         self.slider_p.setMaximum(MAX_TRACE_PRECISION)
-        self.slider_p.setValue(self.settings.trace_precision)
+        self.slider_p.setValue(self.__settings.trace_precision)
         self.slider_p.setMinimumWidth(150)
         self.slider_p.setTickInterval(1)
         self.slider_p.setSingleStep(1)
         self.slider_p.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.slider_p.valueChanged.connect(self.changed_trace_precision)
-        self.slider_p.setVisible(self.settings.show_advanced_settings)
+        self.slider_p.setVisible(self.__settings.show_advanced_settings)
         self.label_p = QLabel()
         self.label_p.setToolTip(
             "Trace precision directly affects the step size used to trace the solution curve. This affects both Automatic and Equational detection. Higher precision means exponentially smaller step size and exponentially higher calculation time. It is preferred to use equational singularity detection over increasing precision. Increase precision only if a singularity is not being detected correctly."
         )
-        self.label_p.setText(f"  &Trace precision: {self.settings.trace_precision}   ")
+        self.label_p.setText(f"  &Trace precision: {self.__settings.trace_precision}   ")
         self.label_p.setBuddy(self.slider_p)
-        self.label_p.setVisible(self.settings.show_advanced_settings)
+        self.label_p.setVisible(self.__settings.show_advanced_settings)
         layout.addWidget(self.label_p)
         layout.addWidget(self.slider_p)
 
@@ -172,7 +194,7 @@ class TraceSettingsDialog(QDialog):
         self.singularity_strategy_group_box = QGroupBox("Singularity detection strategy")
         singularity_layout = QVBoxLayout()
         self.singularity_strategy_group_box.setLayout(singularity_layout)
-        self.singularity_strategy_group_box.setVisible(self.settings.show_advanced_settings)
+        self.singularity_strategy_group_box.setVisible(self.__settings.show_advanced_settings)
         layout.addWidget(self.singularity_strategy_group_box)
 
         # Create singularity detection strategy radio buttons
@@ -227,20 +249,20 @@ class TraceSettingsDialog(QDialog):
         self.radio_none_settings.toggled.connect(self.switch_detection_settings)
 
         # Set initial state
-        strategy = self.settings.get_preferred_detection_for(self.slope_function_str)
+        strategy = self.__settings.get_preferred_detection_for(self.__slope_function_str)
         self.radio_automatic_settings.setChecked(strategy == TraceSettings.Strategy.Automatic)
         self.radio_manual_settings.setChecked(strategy == TraceSettings.Strategy.Manual)
         self.radio_none_settings.setChecked(strategy == TraceSettings.Strategy.None_)
         self.switch_detection_settings()  # Ensure correct initial state
 
-    def create_automatic_settings(self, layout):
+    def create_automatic_settings(self, layout: QVBoxLayout) -> None:
         """Creates the automatic singularity detection settings."""
 
         # 'singularity slope' slider
         self.slider_s = QSlider(Qt.Orientation.Horizontal)
         self.slider_s.setMinimum(MIN_SINGULARITY_MIN_SLOPE)
         self.slider_s.setMaximum(MAX_SINGULARITY_MIN_SLOPE)
-        self.slider_s.setValue(self.settings.singularity_min_slope)
+        self.slider_s.setValue(self.__settings.singularity_min_slope)
         self.slider_s.setMinimumWidth(150)
         self.slider_s.setTickInterval(
             (MAX_SINGULARITY_MIN_SLOPE - MIN_SINGULARITY_MIN_SLOPE) // 15
@@ -255,14 +277,16 @@ for the singularity detection to kick in when at that point.
 - higher value: faster, but less accurate
 - lower value: possibly much slower, but more accurate"""
         )
-        self.label_s.setText(f"  &Singularity slope: {self.settings.singularity_min_slope}   ")
+        self.label_s.setText(
+            f"  &Singularity slope: {self.__settings.singularity_min_slope}   "
+        )
         self.label_s.setBuddy(self.slider_s)
         layout.addWidget(self.label_s)
         layout.addWidget(self.slider_s)
 
         # the 'trace y margin' input line
         self.y_margin_input = QLineEdit()
-        self.y_margin_input.setText(str(self.settings.y_margin))
+        self.y_margin_input.setText(str(self.__settings.y_margin))
         self.y_margin_input.textChanged.connect(self.update_y_margin)
         label = QLabel("  Y offscreen margin:")
         label.setToolTip(
@@ -277,13 +301,13 @@ screen heights the curve can go offscreen before it is cut off.
         form.addRow(label, self.y_margin_input)
         layout.addLayout(form)
 
-    def create_manual_detection_settings(self, layout):
+    def create_manual_detection_settings(self, layout: QVBoxLayout) -> None:
         """Creates the manual singularity detection settings."""
 
         # 'enter singular equation' line input
         self.equation_input = QLineEdit()
         self.equation_input.setText(
-            self.settings.singularity_equations.get(self.slope_function_str, "")
+            self.__settings.get_singularity_equation_for(self.__slope_function_str)
         )
         self.equation_input.setPlaceholderText("Enter singularity equation")
         form = QHBoxLayout()
@@ -314,26 +338,31 @@ What if there are multiple singularities? Just multiply them together!
             self.slider_p.setVisible(True)
             self.singularity_strategy_group_box.setVisible(True)
             self.toggle_button.setText("Hide advanced settings")
-        self.settings.show_advanced_settings = not self.settings.show_advanced_settings
+        self.__settings.show_advanced_settings = not self.__settings.show_advanced_settings
         self.adjustSize()
 
-    def switch_detection_settings(self):
+    def switch_detection_settings(self) -> None:
         """Switches displayed detection settings based on the selected radio button"""
+        # automatic settings
         if self.radio_automatic_settings.isChecked():
             self.no_detection_widget.setVisible(False)
             self.manual_detection_widget.setVisible(False)
             self.automatic_settings_widget.setVisible(True)
+        # manual settings
         elif self.radio_manual_settings.isChecked():
             self.no_detection_widget.setVisible(False)
             self.automatic_settings_widget.setVisible(False)
             self.manual_detection_widget.setVisible(True)
+        # no detection
         elif self.radio_none_settings.isChecked():
             self.automatic_settings_widget.setVisible(False)
             self.manual_detection_widget.setVisible(False)
             self.no_detection_widget.setVisible(True)
+        # adjust the size of the dialog window
         self.adjustSize()
 
-    def accept(self):
+    @override
+    def accept(self) -> None:
         """
         Accepts the dialog, and updates singularity detection settings.
         Shows an error message if the manual singularity equation is invalid and denys the accept.
@@ -341,16 +370,16 @@ What if there are multiple singularities? Just multiply them together!
 
         # auto detection --> accept
         if self.radio_automatic_settings.isChecked():
-            self.settings.set_preferred_detection_for(
-                self.slope_function_str, TraceSettings.Strategy.Automatic
+            self.__settings.set_preferred_detection_for(
+                self.__slope_function_str, TraceSettings.Strategy.Automatic
             )
             super().accept()
             return
 
         # no detection --> accept
         if self.radio_none_settings.isChecked():
-            self.settings.set_preferred_detection_for(
-                self.slope_function_str, TraceSettings.Strategy.None_
+            self.__settings.set_preferred_detection_for(
+                self.__slope_function_str, TraceSettings.Strategy.None_
             )
             super().accept()
             return
@@ -362,7 +391,7 @@ What if there are multiple singularities? Just multiply them together!
         if equation == "":
             # if wants manual --> show warning
             if (
-                self.settings.get_preferred_detection_for(self.slope_function_str)
+                self.__settings.get_preferred_detection_for(self.__slope_function_str)
                 == TraceSettings.Strategy.Manual
             ):
                 QMessageBox.warning(self, "Warning", f"Please enter a singularity equation.")
@@ -372,48 +401,48 @@ What if there are multiple singularities? Just multiply them together!
             return
 
         # get previous equation
-        previous_equation = self.settings.singularity_equations.get(
-            self.slope_function_str, None
+        previous_equation = self.__settings.get_singularity_equation_for(
+            self.__slope_function_str
         )
 
         # if same equation --> accept
         if equation == previous_equation:
-            self.settings.set_preferred_detection_for(
-                self.slope_function_str, TraceSettings.Strategy.Manual
+            self.__settings.set_preferred_detection_for(
+                self.__slope_function_str, TraceSettings.Strategy.Manual
             )
             super().accept()
             return
 
         # if different equation --> check if it is valid
-        if self.settings.set_new_singularity_equation(
-            self.slope_function_str, equation, self.xlim, self.ylim
+        if self.__settings.set_new_singularity_equation(
+            self.__slope_function_str, equation, self.__xlim, self.__ylim
         ):
-            self.settings.set_preferred_detection_for(
-                self.slope_function_str, TraceSettings.Strategy.Manual
+            self.__settings.set_preferred_detection_for(
+                self.__slope_function_str, TraceSettings.Strategy.Manual
             )
             super().accept()
         else:
             QMessageBox.critical(self, "Error", f"Invalid singularity equation.")
 
-    def changed_trace_lines_width(self):
+    def changed_trace_lines_width(self) -> None:
         """Updates the trace lines width according to the slider."""
         width = self.slider_w.value()
         self.label_w.setText(f"  &Trace lines width: {width}")
-        self.settings.line_width = width
+        self.__settings.displayed_line_width = width
 
-    def changed_trace_precision(self):
+    def changed_trace_precision(self) -> None:
         """Updates the trace precision according to the slider."""
         precision = self.slider_p.value()
         self.label_p.setText(f"  &Trace precision: {precision}")
-        self.settings.trace_precision = precision
+        self.__settings.trace_precision = precision
 
-    def changed_singularity_min_slope(self):
+    def changed_singularity_min_slope(self) -> None:
         """Updates the min_slope according to the slider."""
         min_slope = self.slider_s.value()
         self.label_s.setText(f"  &Singularity slope: {min_slope}")
-        self.settings.singularity_min_slope = min_slope
+        self.__settings.singularity_min_slope = min_slope
 
-    def update_y_margin(self):
+    def update_y_margin(self) -> None:
         """Updates y margin according to the y_margin input line."""
         y_margin = self.y_margin_input.text()
         try:
@@ -426,11 +455,11 @@ What if there are multiple singularities? Just multiply them together!
                 self.y_margin_input.setText(str(y_margin))
         except ValueError:  # don't change anything if the input is not valid
             return
-        self.settings.y_margin = y_margin
+        self.__settings.y_margin = y_margin
 
-    def open_color_dialog(self):
+    def open_color_dialog(self) -> None:
         """Opens a QColorDialog to select a color."""
-        color_dialog = QColorDialog(self.selected_color, self)
+        color_dialog = QColorDialog(self.__selected_color, self)
         color_dialog.setOption(QColorDialog.ColorDialogOption.DontUseNativeDialog, True)
 
         # Applying a custom stylesheet to QColorDialog
@@ -444,13 +473,14 @@ What if there are multiple singularities? Just multiply them together!
             """
         )
 
+        # change color if dialog is accepted
         if color_dialog.exec() == QColorDialog.DialogCode.Accepted:
-            self.settings.line_color = color_dialog.selectedColor().name()
+            self.__settings.line_color = color_dialog.selectedColor().name()
             self.update_color_box()  # Update the color box with the new color
             self.button_box.button(QDialogButtonBox.StandardButton.Ok).setFocus()
 
-    def update_color_box(self):
+    def update_color_box(self) -> None:
         """Updates the background color of the color box (QLabel)."""
         self.color_box.setStyleSheet(
-            f"background-color: {self.settings.line_color}; border: 1px solid #626262; border-radius: 5px;"
+            f"background-color: {self.__settings.line_color}; border: 1px solid #626262; border-radius: 5px;"
         )

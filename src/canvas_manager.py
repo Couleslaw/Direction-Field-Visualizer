@@ -111,6 +111,7 @@ class CanvasManager:
 
     def connect(self) -> None:
         """Connect the Canvas to user input events."""
+
         self.cidpress = self.__canvas.figure.canvas.mpl_connect(
             "button_press_event", self.on_press
         )
@@ -127,6 +128,7 @@ class CanvasManager:
         Begins canvas movement if the left mouse button was clicked.
         Starts tracing from the clicked point if the right mouse button was clicked.
         """
+
         if event.inaxes != self.__canvas.axes:
             return
 
@@ -143,6 +145,7 @@ class CanvasManager:
 
     def on_motion(self, event) -> None:
         """Changes axes limits when moving_canvas"""
+
         # if outside of the matplotlib plot
         if event.inaxes != self.__canvas.axes:
             # if a direction line is being drawn at the mouse location
@@ -185,7 +188,13 @@ class CanvasManager:
 
     def on_release(self, event) -> None:
         """Stops canvas movement."""
-        if self.__press is None or event.inaxes != self.__canvas.axes or self.canvas_locked:
+
+        # check if the operation can be done
+        if (
+            (self.__press is None)
+            or (event.inaxes != self.__canvas.axes)
+            or (self.canvas_locked)
+        ):
             return
 
         # accept only left mouse button

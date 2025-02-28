@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.gui.tracing_dialogs import CoordinateDialog, TraceSettingsDialog
-from src.gui.lock_button import LockButton, LockState
+from src.gui.lock_button import LockButton
 from src.gui.stop_button import StopButton
 from src.canvas import Canvas
 from src.default_constants import *
@@ -136,7 +136,7 @@ class VisualizerApp(QWidget):
 
         # add lock button to overlay
         self.lock_button = LockButton(self)
-        self.lock_button.setState(LockState.Unlocked)
+        self.lock_button.setState(LockButton.LockState.Unlocked)
         self.lock_button.setShortcut("Ctrl+L")
         self.lock_button.clicked.connect(self.clicked_lock_canvas_button)
         overlay_layout.addWidget(self.lock_button)
