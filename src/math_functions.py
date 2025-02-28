@@ -1,5 +1,3 @@
-from typing import Callable, Any
-
 # import standard function from math
 from math import (
     sin,
@@ -27,18 +25,37 @@ from math import (
     e,
 )
 
+from typing import Callable, Any
+
 # define some other common math function
 ln = log
 abs = fabs
-cot = lambda x: cos(x) / sin(x)
-sec = lambda x: 1 / cos(x)
-csc = lambda x: 1 / sin(x)
-acot = lambda x: pi / 2 - atan(x)
-asec = lambda x: acos(1 / x)
-acsc = lambda x: asin(1 / x)
-sign = lambda x: int((x > 0)) - int((x < 0))
+cot: Callable[[float], float] = lambda x: cos(x) / sin(x)
+sec: Callable[[float], float] = lambda x: 1 / cos(x)
+csc: Callable[[float], float] = lambda x: 1 / sin(x)
+acot: Callable[[float], float] = lambda x: pi / 2 - atan(x)
+asec: Callable[[float], float] = lambda x: acos(1 / x)
+acsc: Callable[[float], float] = lambda x: asin(1 / x)
+sign: Callable[[float], int] = lambda x: int((x > 0)) - int((x < 0))
 
 
 def create_function_from_string(string: str) -> Callable[[float, float], float] | Any:
     """Receives a string that should be a mathematical function f(x,y) and returns a lambda expression."""
     return eval(f"lambda x, y: {string}")
+
+
+def try_get_value_from_string(string: str) -> float | None:
+    """Receives a string that should contain a mathematical expression which can be evaluated to a real number and tries to evaluate it.
+
+    Args:
+        string (str): String representation of the expression.
+
+    Returns:
+        out (float | None): The result if the expression is valid, None otherwise.
+    """
+
+    try:
+        res = float(eval(string))
+        return res
+    except:
+        return None

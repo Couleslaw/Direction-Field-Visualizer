@@ -11,6 +11,12 @@ class DrawingManager(QObject):
     """Manages drawing curves in a separate thread."""
 
     def __init__(self, plot_axes: Axes, plot_figure: Figure) -> None:
+        """Initializes and starts a new DrawingManager.
+
+        Args:
+            plot_axes (Axes): The matplotlib Axes object of the canvas.
+            plot_figure (Figure): The matplotlib Figure object of the canvas.
+        """
         super().__init__()
         self.__plot_axes = plot_axes
         self.__plot_figure = plot_figure
@@ -22,22 +28,22 @@ class DrawingManager(QObject):
         self.__queue_mutex = QMutex()
         self.__running = True
 
-    def stop(self):
+    def stop(self) -> None:
         self.__running = False
 
-    def enqueue_curve_collection(self, curves: List[CurveInfo]):
+    def enqueue_curve_collection(self, curves: List[CurveInfo]) -> None:
         """Adds a collection of curves to the drawing queue."""
         self.__queue_mutex.lock()
         self.__curve_queue.append(curves)
         self.__queue_mutex.unlock()
 
-    def stop_current_task(self):
+    def stop_current_task(self) -> None:
         """Clears the drawing queue."""
         self.__queue_mutex.lock()
         self.__curve_queue.clear()
         self.__queue_mutex.unlock()
 
-    def __draw_curves(self, curves: List[CurveInfo]):
+    def __draw_curves(self, curves: List[CurveInfo]) -> None:
         """Draws the curves on the plot."""
         if not curves:
             return
@@ -52,12 +58,11 @@ class DrawingManager(QObject):
             self.__plot_axes.add_collection(lc)
         self.__plot_figure.canvas.draw()
 
-    def run(self):
+    def run(self) -> None:
         """Periodically draws the curves from the drawing queue."""
         while self.__running:
             # sleep for a while to avoid busy waiting
-            thread = self.thread()
-            if thread is not None:
+            if (thread := self.thread()) is not None:
                 thread.msleep(5)
 
             # get a bunch of curves from the queue and draw them

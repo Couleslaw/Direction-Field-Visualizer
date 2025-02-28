@@ -1,26 +1,21 @@
 from __future__ import annotations
 
-from typing import Tuple, Iterator, TypeAlias, Any
 import numpy as np
 from numpy.typing import NDArray
 
-from src.math_functions import *
-from src.default_constants import (
-    TRACE_NUM_SEGMENTS_IN_DIAGONAL,
-)
-
-
-from src.math_functions import create_function_from_string
+from src.math_functions import sign, fabs, create_function_from_string
+from src.default_constants import TRACE_NUM_SEGMENTS_IN_DIAGONAL
 from src.tracing.numerical_methods import find_first_intersection
 from src.tracing.trace_settings import TraceSettings
 
-# helper functions for working with vectors
+from typing import Tuple, Iterator, TypeAlias, Any
 
 
 Direction: TypeAlias = int
 """Type alias for tracing direction."""
 
 Strategy: TypeAlias = int
+"""Type alias for singularity handling strategy"""
 
 
 class SolutionTracer:
@@ -222,7 +217,7 @@ class SolutionTracer:
 
         return False
 
-    def handle_singularity(self, x: float, y: float) -> Strategy:
+    def __handle_singularity(self, x: float, y: float) -> Strategy:
         """This function should be called when there is reason to believe that a singularity is close to the point `(x, y)`.
 
         Args:
@@ -361,7 +356,7 @@ class SolutionTracer:
 
         return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
 
-    def should_yield_point(
+    def __should_yield_point(
         self,
         point: NDArray[Any],
         current_curve_segment_length: float,
@@ -390,9 +385,7 @@ class SolutionTracer:
             return current_curve_segment_length > self.__max_line_segment_length
 
         # if one is in screen and the other is not --> yield
-        elif (start_in_screen and not end_in_screen) or (
-            not start_in_screen and end_in_screen
-        ):
+        elif (start_in_screen and not end_in_screen) or (not start_in_screen and end_in_screen):
             return True
 
         # if start and end are both out of screen
@@ -408,7 +401,7 @@ class SolutionTracer:
         length_needed = max(dist / 2, self.__max_line_segment_length)
         return current_curve_segment_length > length_needed
 
-    def create_vertical_line(
+    def __create_vertical_line(
         self, x0: float, y0: float, direction: Direction
     ) -> Iterator[Tuple[float, float]]:
         """Creates a vertical line starting at `(x0, y0)` in the given direction.
@@ -442,11 +435,7 @@ class SolutionTracer:
                 step = self.__max_step
             # if y out of screen --> jump 1/100 of the distance to the edge
             else:
-                dist = (
-                    fabs(y - self.__ylim[0])
-                    if y < self.__ylim[0]
-                    else fabs(y - self.__ylim[1])
-                )
+                dist = fabs(y - self.__ylim[0]) if y < self.__ylim[0] else fabs(y - self.__ylim[1])
                 step = max(dist / 100, self.__max_step)
             return step * direction
 
@@ -508,7 +497,7 @@ class SolutionTracer:
                 break
 
             current_line_segment_length += self.vector_length(diff_to_next_point)
-            if self.should_yield_point(point, current_line_segment_length, line_segment_start):
+            if self.__should_yield_point(point, current_line_segment_length, line_segment_start):
                 yield (x0, point[1])
                 line_segment_start = point.copy()
                 current_line_segment_length = 0
@@ -535,9 +524,7 @@ class SolutionTracer:
 
         if self.__detection_strategy == TraceSettings.Strategy.Manual:
             # if the step would overshoot a possible singularity, resize it
-            if self.vector_length(self.__vector) >= (
-                l := self.vector_length(self.__sing_diff) / 3
-            ):
+            if self.vector_length(self.__vector) >= (l := self.vector_length(self.__sing_diff) / 3):
                 self.__vector = self.resize_vector(self.__vector, l)
 
     def __set_step_when_a_singularity_detected(
@@ -572,9 +559,7 @@ class SolutionTracer:
         # resize vector to have the same dx as is used in singularity detection --> step of this size should be safe
         self.__vector = self.resize_vector_by_x(self.__vector, self.__sing_dx)
 
-    def trace(
-        self, x0: float, y0: float, direction: Direction
-    ) -> Iterator[Tuple[float, float]]:
+    def trace(self, x0: float, y0: float, direction: Direction) -> Iterator[Tuple[float, float]]:
         """Traces a solution curve starting at `(x0, y0)` in the given direction until it reaches a singularity or goes off screen.
 
         Args:
@@ -638,7 +623,7 @@ class SolutionTracer:
             # singularity detected
             else:
                 # get strategy on how to proceed
-                strategy = self.handle_singularity(point[0], point[1])
+                strategy = self.__handle_singularity(point[0], point[1])
 
                 # if tracing should stop
                 if strategy == self.Strategy.Stop:
@@ -659,7 +644,7 @@ class SolutionTracer:
 
                     line_direction = sign(self.__slope) * direction
 
-                    yield from self.create_vertical_line(point[0], point[1], line_direction)
+                    yield from self.__create_vertical_line(point[0], point[1], line_direction)
                     return
 
                 # if the tracing should continue
@@ -685,9 +670,7 @@ class SolutionTracer:
             # yield a new point if the segment has reached the desired length
             current_curve_segment_length += self.vector_length(self.__vector)
 
-            if self.should_yield_point(
-                point, current_curve_segment_length, line_segment_start
-            ):
+            if self.__should_yield_point(point, current_curve_segment_length, line_segment_start):
                 yield (point[0], point[1])
                 line_segment_start = point.copy()
                 current_curve_segment_length = 0

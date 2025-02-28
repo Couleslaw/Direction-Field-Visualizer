@@ -19,14 +19,14 @@ class PeriodicTimer(QObject):
             on_timeout (Callable[[], Any]): The function to be called every `time_period`.
         """
         super().__init__()
-        self.time_period = time_period
+        self.__time_period = time_period
         self.__on_timeout = on_timeout
         self.__running = True
 
     def run(self) -> None:
         """Starts the timer. The function will be called periodically until `stop` is called."""
         while self.__running and (thread := self.thread()) is not None:
-            thread.msleep(self.time_period)
+            thread.msleep(self.__time_period)
             self.__on_timeout()
 
     def stop(self) -> None:
@@ -77,10 +77,10 @@ class Job:
 class TraceManager:
     """Manages tracing jobs and drawing curves."""
 
-    draw_interval: int = 50  # ms
+    __draw_interval: int = 50  # ms
     """Time in milliseconds between drawing curves."""
 
-    show_stop_button_delay: int = 1500  # ms
+    __show_stop_button_delay: int = 1500  # ms
     """Time in milliseconds after which the stop button is shown if tracing takes too long."""
 
     def __init__(
@@ -112,21 +112,21 @@ class TraceManager:
 
     def __create_timer(self) -> None:
         """Creates and starts a timer for periodic drawing."""
-        self.timer_thread = QThread()
-        self.timer = PeriodicTimer(self.draw_interval, self.__draw_all_curves)
-        self.timer.moveToThread(self.timer_thread)
-        self.timer_thread.started.connect(self.timer.run)
-        self.timer_thread.finished.connect(self.timer.deleteLater)
-        self.timer_thread.start()
+        self.__timer_thread = QThread()
+        self.__timer = PeriodicTimer(self.__draw_interval, self.__draw_all_curves)
+        self.__timer.moveToThread(self.__timer_thread)
+        self.__timer_thread.started.connect(self.__timer.run)
+        self.__timer_thread.finished.connect(self.__timer.deleteLater)
+        self.__timer_thread.start()
 
     def __create_drawing_manager(self, plot_axes: Axes, plot_figure: Figure) -> None:
         """Creates and starts a drawing manager in a separate thread."""
-        self.drawing_manager_thread = QThread()
-        self.drawing_manager = DrawingManager(plot_axes, plot_figure)
-        self.drawing_manager.moveToThread(self.drawing_manager_thread)
-        self.drawing_manager_thread.started.connect(self.drawing_manager.run)
-        self.drawing_manager_thread.finished.connect(self.drawing_manager.deleteLater)
-        self.drawing_manager_thread.start()
+        self.__drawing_manager_thread = QThread()
+        self.__drawing_manager = DrawingManager(plot_axes, plot_figure)
+        self.__drawing_manager.moveToThread(self.__drawing_manager_thread)
+        self.__drawing_manager_thread.started.connect(self.__drawing_manager.run)
+        self.__drawing_manager_thread.finished.connect(self.__drawing_manager.deleteLater)
+        self.__drawing_manager_thread.start()
 
     def __draw_all_curves(self) -> None:
         """Takes curve segments from all running jobs and gives them to the drawing manager"""
@@ -136,7 +136,7 @@ class TraceManager:
         for job in self.__jobs:
             job.add_curve_to_list(curves)
         if curves:
-            self.drawing_manager.enqueue_curve_collection(curves)
+            self.__drawing_manager.enqueue_curve_collection(curves)
 
     def start_new_tracer(self, tracer: ParallelTracer) -> None:
         """Starts a new tracer in a new thread."""
@@ -157,23 +157,23 @@ class TraceManager:
             if job in self.__jobs:
                 self.__show_stop_button()
 
-        QTimer.singleShot(self.show_stop_button_delay, after_delay)
+        QTimer.singleShot(self.__show_stop_button_delay, after_delay)
 
     def stop_tracing(self) -> None:
         """Stops all running jobs and current drawing task"""
         for job in self.__jobs:
             job.stop()
-        self.drawing_manager.stop_current_task()
+        self.__drawing_manager.stop_current_task()
 
     def stop_all_threads(self) -> None:
         """Stops all running threads"""
         # stop the timer
-        self.timer.stop()
-        self.timer_thread.quit()
-        self.timer_thread.wait()
+        self.__timer.stop()
+        self.__timer_thread.quit()
+        self.__timer_thread.wait()
         # stop all jobs
         self.stop_tracing()
         # stop the drawing manager
-        self.drawing_manager.stop()
-        self.drawing_manager_thread.quit()
-        self.drawing_manager_thread.wait()
+        self.__drawing_manager.stop()
+        self.__drawing_manager_thread.quit()
+        self.__drawing_manager_thread.wait()

@@ -18,7 +18,7 @@ class StopButton(QPushButton):
         self.setIcon(QIcon(icon_path))
         self.setFixedSize(50, 50)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.clicked.connect(self.on_clicked)
+        self.clicked.connect(self.__on_clicked)
         self.setStyleSheet(
             """
             QPushButton {
@@ -30,6 +30,6 @@ class StopButton(QPushButton):
             """
         )
 
-    def on_clicked(self) -> None:
+    def __on_clicked(self) -> None:
         """Hides the button."""
         self.setVisible(False)

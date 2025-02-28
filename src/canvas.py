@@ -24,7 +24,7 @@ from src.default_constants import (
 class Canvas(FigureCanvas):
     """Ensures communication between the matplotlib figure and Qt GUI."""
 
-    def __init__(self, app: VisualizerApp):
+    def __init__(self, app: VisualizerApp) -> None:
         """Initializes the Canvas object and sets the default parameters.
 
         Args:
@@ -43,7 +43,6 @@ class Canvas(FigureCanvas):
 
         # create the canvas manager
         self.manager = CanvasManager(self)
-        self.manager.connect()
 
     @property
     def figure(self) -> Figure:
@@ -100,46 +99,46 @@ class Canvas(FigureCanvas):
         self.manager.trace_manager.stop_tracing()
 
     def centralize_plot_x(self) -> None:
-        """Moves the plot along the x-axis so that (0,y) is in the center."""
+        """Moves the plot along the x-axis so that (0,y) is in the center. Redraws the plot after."""
         xlim = self.xlim
         x_range = xlim[1] - xlim[0]
         self.xlim = (-x_range / 2, x_range / 2)
         self.redraw()
 
     def centralize_plot_y(self) -> None:
-        """Moves the plot along the y-axis so that (x,0) is in the center."""
+        """Moves the plot along the y-axis so that (x,0) is in the center. Redraws the plot after."""
         ylim = self.ylim
         y_range = ylim[1] - ylim[0]
         self.ylim = (-y_range / 2, y_range / 2)
         self.redraw()
 
     def set_num_arrows(self, num_arrows: int) -> None:
-        """The number of arrows to be drawn in each row of the direction field will be set to `num_arrows`."""
+        """Sets the number of arrows to be drawn in each row of the direction field to `num_arrows`. Redraws the plot after."""
         self.manager.field_settings.num_arrows = num_arrows
         self.redraw()
 
     def set_arrow_length(self, arrow_length: int) -> None:
-        """The display length of the arrows will be set to `arrow_length`."""
+        """Sets the arrow length setting to `arrow_length`. Redraws the plot after."""
         self.manager.field_settings.set_arrow_length(arrow_length)
         self.redraw()
 
     def set_arrow_width(self, arrow_width: int) -> None:
-        """The display width of the arrows will be set to `arrow_width`."""
+        """Sets the arrow width setting to `arrow_width`. Redraws the plot after."""
         self.manager.field_settings.arrow_width = arrow_width
         self.redraw()
 
     def set_color_contrast(self, color_contrast: int) -> None:
-        """The display color contrast will be set to `color_contrast`."""
+        """Sets the color contrast setting to `color_contrast`. Redraws the plot after."""
         self.manager.field_settings.color_contrast = color_contrast
         self.redraw()
 
     def set_color_precision(self, color_precision: int) -> None:
-        """The display color precision will be set to `color_precision`."""
+        """Sets the color precision setting to `color_precision`. Redraws the plot after."""
         self.manager.field_settings.color_precision = color_precision
         self.redraw()
 
     def set_show_field_colors(self, show_colors: bool) -> None:
-        """Changes between black and colorful arrows.
+        """Changes between black and colorful arrows. Redraws the plot after.
 
         Args:
             show_colors (bool): True if the colors should be shown, False otherwise.
@@ -148,33 +147,33 @@ class Canvas(FigureCanvas):
         self.redraw()
 
     def set_color_map(self, color_map: str) -> None:
-        """Sets the color map of the direction field to `color_map`."""
+        """Sets the color map of the direction field to `color_map`. Redraws the plot after."""
         assert color_map in AVAILABLE_COLOR_MAPS
         self.manager.field_settings.color_map = color_map
         self.redraw()
 
     def set_grid_enabled(self, enabled: bool) -> None:
-        """Sets whether the grid lines should be shown or not."""
+        """Sets whether the grid lines should be shown or not. Redraws the plot after."""
         self.manager.field_settings.show_grid = enabled
         self.redraw()
 
     def set_axes_enabled(self, enabled: bool) -> None:
-        """Sets whether the axes lines should be shown or not."""
+        """Sets whether the axes lines should be shown or not. Redraws the plot after."""
         self.manager.field_settings.show_axes = enabled
         self.redraw()
 
     def set_mouse_line_width(self, mouse_line_width: int) -> None:
-        """Sets The display width of the mouse line to `mouse_line_width`."""
+        """Sets The display width of the mouse line to `mouse_line_width`. Redraws the mouse line after."""
         self.manager.mouse_line_width = mouse_line_width
         self.manager.draw_mouse_line()
 
     def set_mouse_line_length(self, mouse_line_length: int) -> None:
-        """Sets the display length of the mouse line to `mouse_line_length`."""
+        """Sets the display length of the mouse line to `mouse_line_length`. Redraws the mouse line after."""
         self.manager.mouse_line_length = mouse_line_length
         self.manager.draw_mouse_line()
 
     def set_drawing_mouse_line(self, drawing_mouse_line: bool) -> None:
-        """Sets whether the 'mouse line' should be drawn or not."""
+        """Sets whether the 'mouse line' should be drawn or not. Redraws the plot after."""
         self.manager.set_drawing_mouse_line(drawing_mouse_line)
         if drawing_mouse_line:
             self.manager.draw_mouse_line()
@@ -182,7 +181,7 @@ class Canvas(FigureCanvas):
             self.manager.remove_mouse_line_from_plot()
 
     def set_new_function(self, new_function: str) -> bool:
-        """Sets a new function to be draw if it is valid.
+        """Sets a new function to be draw if it is valid. Redraws the plot after.
 
         Args:
             new_function (str): The new function to be drawn.
@@ -196,20 +195,20 @@ class Canvas(FigureCanvas):
         return False
 
     def set_equal_axes(self) -> None:
-        """Sets the plot axes to have equal scaling. This is the default setting."""
+        """Sets the plot axes to have equal scaling. Redraws the plot after."""
         self.redraw()
         self.__axes.axis("equal")
         self.redraw()
-        self.app.update_displayed_lims()
+        self.app.update_displayed_axes_limits()
 
     def set_auto_axes(self) -> None:
         """
-        Sets the plot axes to have automatic scaling.
+        Sets the plot axes to have automatic scaling. Redraws the plot after.
         This is used when the user wants to set custom axes limits.
         """
         self.__axes.axis("auto")
         self.redraw()
-        self.app.update_displayed_lims()
+        self.app.update_displayed_axes_limits()
 
     def redraw(self) -> None:
         """Redraws the plot."""

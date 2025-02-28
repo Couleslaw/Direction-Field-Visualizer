@@ -2,26 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 from src.math_functions import create_function_from_string
-
-from src.default_constants import (
-    DEFAULT_TRACE_COLOR,
-    DEFAULT_TRACE_LINES_WIDTH,
-    MIN_TRACE_LINES_WIDTH,
-    MAX_TRACE_LINES_WIDTH,
-    DEFAULT_TRACE_Y_MARGIN,
-    DEFAULT_TRACE_PRECISION,
-    DEFAULT_SINGULARITY_MIN_SLOPE,
-    MIN_TRACE_DX_GRANULARITY,
-    MAX_TRACE_DX_GRANULARITY,
-    MIN_TRACE_MIN_STEP_GRANULARITY,
-    MAX_TRACE_MIN_STEP_GRANULARITY,
-    MIN_TRACE_MAX_STEP_GRANULARITY,
-    MAX_TRACE_MAX_STEP_GRANULARITY,
-    MIN_SINGULARITY_ALERT_DIST_GRANULARITY,
-    MAX_SINGULARITY_ALERT_DIST_GRANULARITY,
-    MAX_TRACE_PRECISION,
-    MIN_TRACE_PRECISION,
-)
+from src.default_constants import *
 
 from typing import Dict, Tuple, List, TypeAlias
 
@@ -128,11 +109,9 @@ class TraceSettings:
     @property
     def trace_dx_granularity(self) -> float:
         """Converts trace precision to granularity, which is then used to calculate dx."""
-        return MIN_TRACE_DX_GRANULARITY + (
-            MAX_TRACE_DX_GRANULARITY - MIN_TRACE_DX_GRANULARITY
-        ) * (self.trace_precision - MIN_TRACE_PRECISION) / (
-            MAX_TRACE_PRECISION - MIN_TRACE_PRECISION
-        )
+        return MIN_TRACE_DX_GRANULARITY + (MAX_TRACE_DX_GRANULARITY - MIN_TRACE_DX_GRANULARITY) * (
+            self.trace_precision - MIN_TRACE_PRECISION
+        ) / (MAX_TRACE_PRECISION - MIN_TRACE_PRECISION)
 
     @property
     def trace_min_step_granularity(self) -> float:

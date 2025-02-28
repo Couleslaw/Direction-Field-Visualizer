@@ -32,7 +32,7 @@ def newtons_method(
             return xnew
         error = relative_error(xnew, xlast)
         xlast = xnew
-        if error < precision or (i := i + 1) > 30:
+        if error < precision or (i := i + 1) > max_iter:
             break
     return xlast
 

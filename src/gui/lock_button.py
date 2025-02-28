@@ -3,11 +3,11 @@ from __future__ import annotations
 import sys
 import os
 
-from typing import override, TypeAlias
-
 from PyQt6.QtWidgets import QPushButton, QWidget
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt
+
+from typing import override, TypeAlias
 
 LockState: TypeAlias = int
 
@@ -32,18 +32,18 @@ class LockButton(QPushButton):
             locked_icon_path = os.path.join(sys._MEIPASS, locked_icon_path)
 
         # set icons
-        self.unlocked_icon = QIcon(unlocked_icon_path)
-        self.locked_icon = QIcon(locked_icon_path)
+        self.__unlocked_icon = QIcon(unlocked_icon_path)
+        self.__locked_icon = QIcon(locked_icon_path)
 
         # set tool tips
-        self.shortcut_str = ""
-        self.locked_tooltip = "Unlock canvas to allow movement"
-        self.unlocked_tooltip = "Lock canvas to prevent accidental movement"
+        self.__shortcut_str = ""
+        self.__locked_tooltip = "Unlock canvas to allow movement"
+        self.__unlocked_tooltip = "Lock canvas to prevent accidental movement"
 
         # set style
         self.setFixedSize(50, 50)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.clicked.connect(self.on_clicked)
+        self.clicked.connect(self.__on_clicked)
         self.setStyleSheet(
             """
             QPushButton {
@@ -60,20 +60,20 @@ class LockButton(QPushButton):
         """Set the shortcut key for the button."""
         super().setShortcut(key)
         # make the shortcut visible in the tooltip
-        self.shortcut_str = f"\n{key}"
+        self.__shortcut_str = f"\n{key}"
 
     def setState(self, state: LockState) -> None:
         """Lock or unlock the button."""
         assert state in [self.LockState.Locked, self.LockState.Unlocked]
         self.state = state
         if state == self.LockState.Locked:
-            self.setIcon(self.locked_icon)
-            self.setToolTip(self.locked_tooltip + self.shortcut_str)
+            self.setIcon(self.__locked_icon)
+            self.setToolTip(self.__locked_tooltip + self.__shortcut_str)
         else:
-            self.setIcon(self.unlocked_icon)
-            self.setToolTip(self.unlocked_tooltip + self.shortcut_str)
+            self.setIcon(self.__unlocked_icon)
+            self.setToolTip(self.__unlocked_tooltip + self.__shortcut_str)
 
-    def on_clicked(self) -> None:
+    def __on_clicked(self) -> None:
         """Changes the state of the button."""
         if self.state == self.LockState.Locked:
             self.setState(self.LockState.Unlocked)

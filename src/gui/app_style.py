@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
 class StyleSettings:
     """Stores the style settings of an application."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.__style: str | None = None
 
     @property
@@ -28,7 +28,7 @@ class StyleSettings:
 class StyleWindow(QDialog):
     """A dialog window for changing the style of an application."""
 
-    def __init__(self, settings: StyleSettings, parent: QWidget | None = None):
+    def __init__(self, settings: StyleSettings, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         self.__settings = settings
@@ -56,7 +56,7 @@ class StyleWindow(QDialog):
 
         self.setLayout(layout)
 
-    def apply_style(self):
+    def apply_style(self) -> None:
         """Sets the style selected in the combo box."""
         self.__settings.style = self.style_combo_box.currentText()
         QApplication.setStyle(QStyleFactory.create(self.__settings.style))

@@ -10,7 +10,7 @@ from typing import override
 class MainWindow(QMainWindow):
     """Main window of the application."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Direction Field Visualizer")
 
@@ -26,7 +26,7 @@ class MainWindow(QMainWindow):
         self.__style_settings = StyleSettings()
 
     @override
-    def closeEvent(self, a0: QCloseEvent | None):
+    def closeEvent(self, a0: QCloseEvent | None) -> None:
         """Closes the application."""
 
         # the argument is not called 'event' because the function being overridden has a different signature
@@ -46,7 +46,7 @@ class MainWindow(QMainWindow):
             event.ignore()
 
     @override
-    def keyPressEvent(self, a0: QKeyEvent | None):
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
         """Opens the user guide on F1 press."""
 
         # the argument is not called 'event' because the function being overridden has a different signature
@@ -59,13 +59,13 @@ class MainWindow(QMainWindow):
         if event.key() == Qt.Key.Key_F2:
             self.open_style_window()
 
-    def open_user_guide(self):
+    def open_user_guide(self) -> None:
         """Opens the user guide in the default browser."""
         QDesktopServices.openUrl(
             QUrl("https://github.com/Couleslaw/Direction-Field-Visualizer/wiki/User-Guide")
         )
 
-    def open_style_window(self):
+    def open_style_window(self) -> None:
         """Opens a dialog to chose app style."""
         style_window = StyleWindow(self.__style_settings, self)
         style_window.exec()
