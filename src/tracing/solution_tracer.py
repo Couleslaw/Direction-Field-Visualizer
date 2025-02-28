@@ -515,6 +515,63 @@ class SolutionTracer:
 
         yield (x0, point[1])
 
+    def __set_step_when_no_singularity_detected(self, point: NDArray[np.float64]) -> None:
+        """Should be called when no singularity was detected near the given point.
+        Sets the step size by scaling `self.__vector`.
+
+        Args:
+            point (NDArray[np.float64]): Current point.
+        """
+
+        self.__vector = self.resize_vector_by_x(self.__vector, self.__max_dx)
+
+        # if not out of bounds and the step is too big, resize it
+        # allow big steps out of bounds to save time
+        if (
+            self.__ylim[0] <= point[1] <= self.__ylim[1]
+            and self.vector_length(self.__vector) > self.__max_step
+        ):
+            self.__vector = self.resize_vector(self.__vector, self.__max_step)
+
+        if self.__detection_strategy == TraceSettings.Strategy.Manual:
+            # if the step would overshoot a possible singularity, resize it
+            if self.vector_length(self.__vector) >= (
+                l := self.vector_length(self.__sing_diff) / 3
+            ):
+                self.__vector = self.resize_vector(self.__vector, l)
+
+    def __set_step_when_a_singularity_detected(
+        self, point: NDArray[np.float64], continue_count: int
+    ) -> None:
+        """Should be called when a singularity of type CONTINUE was detected near the given point.
+        Sets the step size by scaling `self.__vector`.
+
+        Args:
+            point (NDArray[np.float64]): Current point.
+            continue_count (int): The number of times in a row the tracing continued OK after the singularity was detected.
+        """
+
+        # manual detection
+        if self.__detection_strategy == TraceSettings.Strategy.Manual:
+            step_size = np.clip(self.vector_length(self.__sing_diff) / 3, 0, self.__max_step)
+            self.__vector = self.resize_vector(self.__vector, step_size)
+            # if the step is too big, resize it
+            if fabs(self.__vector[0]) > self.__max_dx:
+                self.__vector = self.resize_vector_by_x(self.__vector, self.__max_dx)
+            return
+
+        # automatic detection
+
+        # resize vector to have normal dx
+        self.__vector = self.resize_vector_by_x(self.__vector, self.__max_dx)
+
+        # if we continued a couple times in a row and the function seems to be monotonic ahead --> probably safe
+        if continue_count % 10 == 0 and self.__is_monotonous_on(point, 2 * self.__vector, 20):
+            return
+
+        # resize vector to have the same dx as is used in singularity detection --> step of this size should be safe
+        self.__vector = self.resize_vector_by_x(self.__vector, self.__sing_dx)
+
     def trace(
         self, x0: float, y0: float, direction: Direction
     ) -> Iterator[Tuple[float, float]]:
@@ -536,7 +593,7 @@ class SolutionTracer:
         yield (x0, y0)
 
         # current and last points
-        point = np.array([x0, y0])
+        point = np.array([x0, y0], dtype=np.float64)
         last_point = point.copy()
 
         # set tracing direction, max_dx and sing_dx
@@ -576,22 +633,7 @@ class SolutionTracer:
             # no singularity detected
             if not self.__possible_singularity_at(point[0], point[1]):
                 continue_count = 0  # reset continue count
-                self.__vector = self.resize_vector_by_x(self.__vector, self.__max_dx)
-
-                # if not out of bounds and the step is too big, resize it
-                # allow big steps out of bounds to save time
-                if (
-                    self.__ylim[0] <= point[1] <= self.__ylim[1]
-                    and self.vector_length(self.__vector) > self.__max_step
-                ):
-                    self.__vector = self.resize_vector(self.__vector, self.__max_step)
-
-                if self.__detection_strategy == TraceSettings.Strategy.Manual:
-                    # if the step would overshoot a possible singularity, resize it
-                    if self.vector_length(self.__vector) >= (
-                        l := self.vector_length(self.__sing_diff) / 3
-                    ):
-                        self.__vector = self.resize_vector(self.__vector, l)
+                self.__set_step_when_no_singularity_detected(point)
 
             # singularity detected
             else:
@@ -622,37 +664,10 @@ class SolutionTracer:
 
                 # if the tracing should continue
                 if strategy == self.Strategy.Continue:
-                    # manual detection
-                    if self.__detection_strategy == TraceSettings.Strategy.Manual:
-                        step_size = np.clip(
-                            self.vector_length(self.__sing_diff) / 3, 0, self.__max_step
-                        )
-                        self.__vector = self.resize_vector(self.__vector, step_size)
-                        # if the step is too big, resize it
-                        if fabs(self.__vector[0]) > self.__max_dx:
-                            self.__vector = self.resize_vector_by_x(
-                                self.__vector, self.__max_dx
-                            )
-
-                    # automatic detection
-                    else:
+                    # increment the continue count if automatic detection is used
+                    if self.__detection_strategy == TraceSettings.Strategy.Automatic:
                         continue_count += 1
-                        # resize vector to have normal dx
-                        self.__vector = self.resize_vector_by_x(self.__vector, self.__max_dx)
-
-                        # if we continued a couple times in a row and the function seems to be monotonic ahead
-                        # --> probably safe
-                        if continue_count % 10 == 0 and self.__is_monotonous_on(
-                            point, 2 * self.__vector, 20
-                        ):
-                            pass  # keep normal dx
-
-                        else:
-                            # resize vector to have the same dx as is used in singularity detection
-                            # step of this size should be safe
-                            self.__vector = self.resize_vector_by_x(
-                                self.__vector, self.__sing_dx
-                            )
+                    self.__set_step_when_a_singularity_detected(point, continue_count)
 
             # move to the next point
             last_point = point.copy()
