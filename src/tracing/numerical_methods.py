@@ -18,6 +18,10 @@ def newtons_method(
     """
 
     def relative_error(xnew: float, xlast: float) -> float:
+        # if there would be division by zero --> shift a bit
+        if xnew == 0:
+            xnew += precision
+            xlast += precision
         return fabs((xnew - xlast) / xnew)
 
     def derivative(function: Callable[[float], float], x: float) -> float:
@@ -27,9 +31,12 @@ def newtons_method(
     xlast = x0
     i = 0
     while True:
-        xnew = xlast - function(xlast) / derivative(function, xlast)
-        if xnew == 0:
-            return xnew
+        der = derivative(function, xlast)
+        #  if we would run into a dead end --> try moving the point a bot
+        if der == 0:
+            xnew = xlast * 1.2
+        else:
+            xnew = xlast - function(xlast) / der
         error = relative_error(xnew, xlast)
         xlast = xnew
         if error < precision or (i := i + 1) > max_iter:
