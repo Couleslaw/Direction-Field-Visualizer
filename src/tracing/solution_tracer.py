@@ -8,7 +8,7 @@ from src.default_constants import TRACE_NUM_SEGMENTS_IN_DIAGONAL
 from src.tracing.numerical_methods import find_first_intersection
 from src.tracing.trace_settings import TraceSettings
 
-from typing import Tuple, Iterator, Any
+from typing import Tuple, Iterator
 from enum import Enum
 
 
@@ -31,15 +31,15 @@ class SolutionTracer:
         Continue = 3
 
     @staticmethod
-    def vector_length(vector: NDArray[Any]) -> float:
+    def vector_length(vector: NDArray[np.float64]) -> float:
         return float(np.linalg.norm(vector))
 
     @staticmethod
-    def resize_vector(vector: NDArray[Any], length: float) -> NDArray[Any]:
+    def resize_vector(vector: NDArray[np.float64], length: float) -> NDArray[np.float64]:
         return vector * length / SolutionTracer.vector_length(vector)
 
     @staticmethod
-    def resize_vector_by_x(vector: NDArray[Any], new_x: float) -> NDArray[Any]:
+    def resize_vector_by_x(vector: NDArray[np.float64], new_x: float) -> NDArray[np.float64]:
         return vector * new_x / fabs(vector[0])
 
     @staticmethod
@@ -108,14 +108,14 @@ class SolutionTracer:
         """The maximum step size allowed when close to a singularity."""
 
     def __is_monotonous_on(
-        self, start: NDArray[Any], diff_vector: NDArray[Any], num_points: int
+        self, start: NDArray[np.float64], diff_vector: NDArray[np.float64], num_points: int
     ) -> bool:
         """Checks if the slope function seems on the line segment from `start` to `start + diff_vector`
         by evaluating it at `num_points` equidistant points on the segment.
 
         Args:
-            start (NDArray[Any]): Start of the segment.
-            diff_vector (NDArray[Any]): Segment vector. `diff_vector = end - start`.
+            start (NDArray[np.float64]): Start of the segment.
+            diff_vector (NDArray[np.float64]): Segment vector. `diff_vector = end - start`.
             num_points (int): Number of points to evaluate the slope function at.
 
         Returns:
@@ -352,16 +352,16 @@ class SolutionTracer:
 
     def __should_yield_point(
         self,
-        point: NDArray[Any],
+        point: NDArray[np.float64],
         current_curve_segment_length: float,
-        curve_segment_start: NDArray[Any],
+        curve_segment_start: NDArray[np.float64],
     ) -> bool:
         """Determines if a new point should be yielded based on the point position and the current line segment.
 
         Args:
-            point (NDArray[Any]): Current point.
+            point (NDArray[np.float64]): Current point.
             current_curve_segment_length (float): Length of the current curve segment. From `line_segment_start` to `point`.
-            line_segment_start (NDArray[Any]): The starting point of the current curve segment.
+            line_segment_start (NDArray[np.float64]): The starting point of the current curve segment.
 
         Returns:
             result (bool): True if a new point should be yielded, False otherwise.
@@ -418,7 +418,7 @@ class SolutionTracer:
         original_dist = self.vector_length(self.__sing_diff)
 
         # starting point
-        point = np.array([x0, y0])
+        point = np.array([x0, y0], dtype=np.float64)
         current_line_segment_length: float = 0
         line_segment_start = point.copy()
 
