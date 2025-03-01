@@ -429,12 +429,13 @@ What if there are multiple singularities? Just multiply them together!
         if y_margin < 0:
             y_margin = 0
             self.__y_margin_input.setText(str(y_margin))
+
         if y_margin > MAX_TRACE_Y_MARGIN:
             y_margin = MAX_TRACE_Y_MARGIN
             self.__y_margin_input.setText(str(y_margin))
 
         # update y_margin in settings
-        self.__settings.y_margin = y_margin
+        self.__settings.y_margin = round(y_margin, 3)
 
     def __open_color_dialog(self) -> None:
         """Opens a QColorDialog to select a color."""
