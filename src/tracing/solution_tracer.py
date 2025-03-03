@@ -96,21 +96,28 @@ class SolutionTracer:
         """Current slope of the solution curve."""
         self.__vector: NDArray[np.float64]
         """A vector in `self.__direction` with slope `self.__slope`."""
-        self.__max_dx: float
-        """The maximum x-dim size of a step."""
 
         # automatic singularity detection
-        self.__sing_dx: float
+        xdiff = self.__xlim[1] - self.__xlim[0]
+        self.__max_dx: float = (xdiff) / 10**self.__settings.trace_dx_granularity
+        """The maximum x-dim size of a step."""
+        self.__sing_dx: float = min(1e-6, self.__max_dx / 1000)
         """The size of a step used when a singularity is detected in auto-detection mode."""
 
         # manual singularity detection
         self.__sing_diff: NDArray[np.float64]
         """The vector from the current point to the singularity. More precisely the place where the closes singularity is believed to be."""
-        self.__singularity_alert_distance: float
+        self.__singularity_alert_distance: float = (
+            self.__diagonal_len / 10**self.__settings.singularity_alert_dist_granularity
+        )
         """The distance between current point and the singularity at the singularity is considered close."""
-        self.__min_step: float
+        self.__min_step: float = (
+            self.__diagonal_len / 10**self.__settings.trace_min_step_granularity
+        )
         """The minimum step size allowed when close to a singularity."""
-        self.__max_step: float
+        self.__max_step: float = (
+            self.__diagonal_len / 10**self.__settings.trace_max_step_granularity
+        )
         """The maximum step size allowed when close to a singularity."""
 
     def __is_monotonous_on(
@@ -574,24 +581,12 @@ class SolutionTracer:
             curve (Iterator[Tuple[float, float]]): Iterator points that are on the curve.
         """
 
-        # yield the starting point
-        yield (x0, y0)
-
         # current and last points
         point = np.array([x0, y0], dtype=np.float64)
         last_point = point.copy()
 
-        # set tracing direction, max_dx and sing_dx
-        xdiff = self.__xlim[1] - self.__xlim[0]
-        self.__max_dx = (xdiff) / 10**self.__settings.trace_dx_granularity
-        self.__sing_dx = min(1e-6, self.__max_dx / 1000)
-
-        # set parameters for manual singularity detection
-        self.__min_step = self.__diagonal_len / 10**self.__settings.trace_min_step_granularity
-        self.__max_step = self.__diagonal_len / 10**self.__settings.trace_max_step_granularity
-        self.__singularity_alert_distance = (
-            self.__diagonal_len / 10**self.__settings.singularity_alert_dist_granularity
-        )
+        # yield the starting point
+        yield (x0, y0)
 
         # the number of times in a row the tracing continued OK after a singularity was detected
         # it is used in automatic detection - if it continues OK for a while, it is probably safe
