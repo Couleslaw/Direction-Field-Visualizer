@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 from numpy.typing import NDArray
+from numpy import floating
 
 from src.math_functions import sign, fabs, create_function_from_string
 from src.default_constants import TRACE_NUM_SEGMENTS_IN_DIAGONAL
@@ -35,15 +36,15 @@ class SolutionTracer:
         CONTINUE = 3
 
     @staticmethod
-    def vector_length(vector: NDArray[np.float64]) -> float:
+    def vector_length(vector: NDArray[floating]) -> float:
         return float(np.linalg.norm(vector))
 
     @staticmethod
-    def resize_vector(vector: NDArray[np.float64], length: float) -> NDArray[np.float64]:
+    def resize_vector(vector: NDArray[floating], length: float) -> NDArray[floating]:
         return vector * length / SolutionTracer.vector_length(vector)
 
     @staticmethod
-    def resize_vector_by_x(vector: NDArray[np.float64], new_x: float) -> NDArray[np.float64]:
+    def resize_vector_by_x(vector: NDArray[floating], new_x: float) -> NDArray[floating]:
         return vector * new_x / fabs(vector[0])
 
     @staticmethod
@@ -54,6 +55,7 @@ class SolutionTracer:
         self,
         settings: TraceSettings,
         slope_function_string: str,
+        direction: SolutionTracer.Direction,
         xlim: Tuple[float, float],
         ylim: Tuple[float, float],
     ) -> None:
@@ -68,6 +70,7 @@ class SolutionTracer:
 
         # store the arguments
         self.__settings = settings
+        self.__direction = direction
         self.__xlim = xlim
         self.__ylim = ylim
 
@@ -88,7 +91,6 @@ class SolutionTracer:
         self.__max_line_segment_length = self.__diagonal_len / TRACE_NUM_SEGMENTS_IN_DIAGONAL
 
         # private fields for tracing
-        self.__direction: SolutionTracer.Direction
         """Tracing direction. Either Right or Left."""
         self.__slope: float
         """Current slope of the solution curve."""
@@ -258,7 +260,10 @@ class SolutionTracer:
 
             # auto detection --> use sing_dx to determine size of diff
             if self.__detection_strategy == TraceSettings.Strategy.AUTOMATIC:
-                diff = np.array([self.__sing_dx, self.__sing_dx * der]) * self.__direction
+                diff = (
+                    np.array([self.__sing_dx, self.__sing_dx * der], dtype=np.float64)
+                    * self.__direction.value
+                )
 
             # manual detection --> use distance to singularity to determine size of diff
             elif self.__detection_strategy == TraceSettings.Strategy.MANUAL:
@@ -557,7 +562,7 @@ class SolutionTracer:
             # resize vector to have the same dx as is used in singularity detection --> step of this size should be safe
             self.__vector = self.resize_vector_by_x(self.__vector, self.__sing_dx)
 
-    def trace(self, x0: float, y0: float, direction: Direction) -> Iterator[Tuple[float, float]]:
+    def trace(self, x0: float, y0: float) -> Iterator[Tuple[float, float]]:
         """Traces a solution curve starting at `(x0, y0)` in the given direction until it reaches a singularity or goes off screen.
 
         Args:
@@ -577,7 +582,6 @@ class SolutionTracer:
         last_point = point.copy()
 
         # set tracing direction, max_dx and sing_dx
-        self.__direction = direction
         xdiff = self.__xlim[1] - self.__xlim[0]
         self.__max_dx = (xdiff) / 10**self.__settings.trace_dx_granularity
         self.__sing_dx = min(1e-6, self.__max_dx / 1000)
@@ -601,7 +605,9 @@ class SolutionTracer:
             try:
                 # calculate the slope at the current point
                 self.__slope = self.__slope_func(point[0], point[1])
-                self.__vector = np.array([1, self.__slope], dtype=np.float64) * direction.value
+                self.__vector = (
+                    np.array([1, self.__slope], dtype=np.float64) * self.__direction.value
+                )
             except:
                 # slope_func is unsafe
                 break
@@ -637,7 +643,9 @@ class SolutionTracer:
                         yield (point[0], point[1])
                         return
 
-                    line_direction = SolutionTracer.VDirection(sign(self.__slope) * direction.value)
+                    line_direction = SolutionTracer.VDirection(
+                        sign(self.__slope) * self.__direction.value
+                    )
 
                     yield from self.__create_vertical_line(point[0], point[1], line_direction)
                     return

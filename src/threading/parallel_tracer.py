@@ -104,10 +104,10 @@ class ParallelTracer(QObject):
 
         # create a new solution tracer
         tracer = SolutionTracer(
-            self.__settings, self.__slope_function_str, self.__xlim, self.__ylim
+            self.__settings, self.__slope_function_str, self.__direction, self.__xlim, self.__ylim
         )
         # get the line segment iterator
-        line_iterator = tracer.trace(self.__x, self.__y, self.__direction)
+        line_iterator = tracer.trace(self.__x, self.__y)
 
         # change state to running
         self.__running = True
