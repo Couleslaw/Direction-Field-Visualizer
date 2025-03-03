@@ -18,17 +18,21 @@ class SolutionTracer:
     class Direction(Enum):
         """Tracing direction constants."""
 
-        Right = 1
-        Left = -1
-        Up = 1
-        Down = -1
+        RIGHT = 1
+        LEFT = -1
+
+    class VDirection(Enum):
+        """Direction constants for vertical lines."""
+
+        UP = 1
+        DOWN = -1
 
     class Strategy(Enum):
         """Singularity handling return codes."""
 
-        Stop = 1
-        Infinite = 2
-        Continue = 3
+        STOP = 1
+        INFINITE = 2
+        CONTINUE = 3
 
     @staticmethod
     def vector_length(vector: NDArray[np.float64]) -> float:
@@ -72,7 +76,7 @@ class SolutionTracer:
         self.__slope_func = create_function_from_string(slope_function_string)
 
         # load the singularity equation if manual detection is used
-        if self.__detection_strategy == TraceSettings.Strategy.Manual:
+        if self.__detection_strategy == TraceSettings.Strategy.MANUAL:
             sing_eq_str = settings.get_singularity_equation_for(slope_function_string)
             assert sing_eq_str is not None
             self.__singularity_eq = create_function_from_string(sing_eq_str)
@@ -85,7 +89,7 @@ class SolutionTracer:
 
         # private fields for tracing
         self.__direction: SolutionTracer.Direction
-        """Tracing direction. Either SolutionTracer.Direction.Right or SolutionTracer.Direction.Left."""
+        """Tracing direction. Either Right or Left."""
         self.__slope: float
         """Current slope of the solution curve."""
         self.__vector: NDArray[np.float64]
@@ -148,7 +152,7 @@ class SolutionTracer:
         """
 
         #  never stop for non-automatic detection
-        if self.__detection_strategy != TraceSettings.Strategy.Automatic:
+        if self.__detection_strategy != TraceSettings.Strategy.AUTOMATIC:
             return False
 
         # distance from edge of the screen
@@ -169,18 +173,19 @@ class SolutionTracer:
         """
 
         # if no detection --> return False
-        if self.__detection_strategy == TraceSettings.Strategy.None_:
+        if self.__detection_strategy == TraceSettings.Strategy.NONE:
             return False
 
         # if automatic detection is enabled, check if the slope is too steep
-        if self.__detection_strategy == TraceSettings.Strategy.Automatic:
+        if self.__detection_strategy == TraceSettings.Strategy.AUTOMATIC:
             try:  # slope_func is unsafe
                 return fabs(self.__slope_func(x, y)) > self.__settings.singularity_min_slope
             except:
                 # probably division by zero --> close to singularity
                 return True
 
-        # manual detection --> singularity_eq should be set
+        # manual detection
+        assert self.__detection_strategy == TraceSettings.Strategy.MANUAL
         assert self.__singularity_eq is not None
 
         try:
@@ -228,17 +233,17 @@ class SolutionTracer:
 
         # check if the detection strategy is valid (only automatic or manual)
         assert self.__detection_strategy in [
-            TraceSettings.Strategy.Automatic,
-            TraceSettings.Strategy.Manual,
+            TraceSettings.Strategy.AUTOMATIC,
+            TraceSettings.Strategy.MANUAL,
         ]
 
         # manual detection & if y is out of bounds --> STOP
-        if self.__detection_strategy == TraceSettings.Strategy.Manual and (
+        if self.__detection_strategy == TraceSettings.Strategy.MANUAL and (
             y < self.__ylim[0] or y > self.__ylim[1]
         ):
             if fabs(self.__slope_func(x, y)) > 1:
-                return self.Strategy.Infinite
-            return self.Strategy.Stop
+                return self.Strategy.INFINITE
+            return self.Strategy.STOP
 
         # calculate the first derivative at (x,y)
         # get vector in the direction of the slope: diff
@@ -252,11 +257,11 @@ class SolutionTracer:
             der = self.round_if_close_to_zero(der)
 
             # auto detection --> use sing_dx to determine size of diff
-            if self.__detection_strategy == TraceSettings.Strategy.Automatic:
+            if self.__detection_strategy == TraceSettings.Strategy.AUTOMATIC:
                 diff = np.array([self.__sing_dx, self.__sing_dx * der]) * self.__direction
 
             # manual detection --> use distance to singularity to determine size of diff
-            else:
+            elif self.__detection_strategy == TraceSettings.Strategy.MANUAL:
                 # sing_diff = distance to singularity
                 # jump to the other side
                 if self.vector_length(self.__sing_diff) > self.__min_step:
@@ -274,6 +279,9 @@ class SolutionTracer:
                     diff = self.resize_vector(diff, self.__max_step)
                 diff = 2 * diff
 
+            else:
+                assert False
+
             # jump to the other side of the singularity (hopefully)
             nx, ny = x + diff[0], y + diff[1]
 
@@ -287,11 +295,11 @@ class SolutionTracer:
         except:
             # either division-by-zero, math-domain-error or the function is not valid
             # --> something is wrong, stop tracing
-            return self.Strategy.Stop
+            return self.Strategy.STOP
 
         # helper function to determine if the tracing can continue
         def can_continue() -> bool:
-            if self.__detection_strategy == TraceSettings.Strategy.Manual:
+            if self.__detection_strategy == TraceSettings.Strategy.MANUAL:
                 return self.vector_length(self.__sing_diff) > self.__min_step
 
             # if the slope is very steep, there is almost certainly a singularity --> STOP
@@ -305,50 +313,50 @@ class SolutionTracer:
             return self.__is_monotonous_on(np.array([x, y]), 2 * vector, 10)
 
         # convex up - forward
-        if der > 0 and self.__direction == self.Direction.Right:
+        if der > 0 and self.__direction == self.Direction.RIGHT:
             if n_der2 > 0 and n_der < 0:  # convex down
-                return self.Strategy.Infinite
+                return self.Strategy.INFINITE
             if n_der2 > 0 and n_der > 0:  # convex up
-                return self.Strategy.Continue if can_continue() else self.Strategy.Stop
+                return self.Strategy.CONTINUE if can_continue() else self.Strategy.STOP
             if n_der2 < 0 and n_der > 0:  # concave up
-                return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
+                return self.Strategy.CONTINUE if can_continue() else self.Strategy.INFINITE
             if n_der2 < 0 and n_der < 0:  # concave down
-                return self.Strategy.Stop
+                return self.Strategy.STOP
 
         # concave down - forward
-        if der < 0 and self.__direction == self.Direction.Right:
+        if der < 0 and self.__direction == self.Direction.RIGHT:
             if n_der2 > 0 and n_der < 0:  # convex down
-                return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
+                return self.Strategy.CONTINUE if can_continue() else self.Strategy.INFINITE
             if n_der2 > 0 and n_der > 0:  # convex up
-                return self.Strategy.Stop
+                return self.Strategy.STOP
             if n_der2 < 0 and n_der > 0:  # concave up
-                return self.Strategy.Infinite
+                return self.Strategy.INFINITE
             if n_der2 < 0 and n_der < 0:  # concave down
-                return self.Strategy.Continue if can_continue() else self.Strategy.Stop
+                return self.Strategy.CONTINUE if can_continue() else self.Strategy.STOP
 
         # concave up - backward
-        if der > 0 and self.__direction == self.Direction.Left:
+        if der > 0 and self.__direction == self.Direction.LEFT:
             if n_der2 > 0 and n_der < 0:  # convex down
-                return self.Strategy.Stop
+                return self.Strategy.STOP
             if n_der2 > 0 and n_der > 0:  # convex up
-                return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
+                return self.Strategy.CONTINUE if can_continue() else self.Strategy.INFINITE
             if n_der2 < 0 and n_der > 0:  # concave up
-                return self.Strategy.Continue if can_continue() else self.Strategy.Stop
+                return self.Strategy.CONTINUE if can_continue() else self.Strategy.STOP
             if n_der2 < 0 and n_der < 0:  # concave down
-                return self.Strategy.Infinite
+                return self.Strategy.INFINITE
 
         # convex down - backward
-        if der < 0 and self.__direction == self.Direction.Left:
+        if der < 0 and self.__direction == self.Direction.LEFT:
             if n_der2 > 0 and n_der < 0:  # convex down
-                return self.Strategy.Continue if can_continue() else self.Strategy.Stop
+                return self.Strategy.CONTINUE if can_continue() else self.Strategy.STOP
             if n_der2 > 0 and n_der > 0:  # convex up
-                return self.Strategy.Infinite
+                return self.Strategy.INFINITE
             if n_der2 < 0 and n_der > 0:  # concave up
-                return self.Strategy.Stop
+                return self.Strategy.STOP
             if n_der2 < 0 and n_der < 0:  # concave down
-                return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
+                return self.Strategy.CONTINUE if can_continue() else self.Strategy.INFINITE
 
-        return self.Strategy.Continue if can_continue() else self.Strategy.Infinite
+        return self.Strategy.CONTINUE if can_continue() else self.Strategy.INFINITE
 
     def __should_yield_point(
         self,
@@ -396,7 +404,7 @@ class SolutionTracer:
         return current_curve_segment_length > length_needed
 
     def __create_vertical_line(
-        self, x0: float, y0: float, direction: Direction
+        self, x0: float, y0: float, direction: VDirection
     ) -> Iterator[Tuple[float, float]]:
         """Creates a vertical line starting at `(x0, y0)` in the given direction.
         The line can either go off screen or stop (if a singularity is detected).
@@ -405,14 +413,11 @@ class SolutionTracer:
         Args:
             x0 (float): x-coordinate of the starting point.
             y0 (float): y-coordinate of the starting point.
-            direction (Direction): Direction of the line. Either SolutionTracer.Direction.Up or SolutionTracer.Direction.Down.
+            direction (VDirection): Direction of the line. Either UP or DOWN.
 
         Yields:
             line (Iterator[Tuple[float, float]]): Iterator of points on the line.
         """
-
-        # check if the direction is valid
-        assert direction in [self.Direction.Up, self.Direction.Down]
 
         # save the original distance to singularity
         original_dist = self.vector_length(self.__sing_diff)
@@ -435,15 +440,15 @@ class SolutionTracer:
 
         while True:
             # if y out of bounds in the desired direction --> break
-            if (direction == self.Direction.Up and point[1] > self.__ylim[1]) or (
-                direction == self.Direction.Down and point[1] < self.__ylim[0]
+            if (direction == self.VDirection.UP and point[1] > self.__ylim[1]) or (
+                direction == self.VDirection.DOWN and point[1] < self.__ylim[0]
             ):
                 break
 
             diff_to_next_point = np.array([0, get_y_step(point[1])])
 
             # if manual --> calculate diff to singularity
-            if self.__detection_strategy == TraceSettings.Strategy.Manual:
+            if self.__detection_strategy == TraceSettings.Strategy.MANUAL:
                 assert self.__singularity_eq is not None
                 try:
                     singularity = find_first_intersection(
@@ -516,7 +521,7 @@ class SolutionTracer:
         ):
             self.__vector = self.resize_vector(self.__vector, self.__max_step)
 
-        if self.__detection_strategy == TraceSettings.Strategy.Manual:
+        if self.__detection_strategy == TraceSettings.Strategy.MANUAL:
             # if the step would overshoot a possible singularity, resize it
             if self.vector_length(self.__vector) >= (l := self.vector_length(self.__sing_diff) / 3):
                 self.__vector = self.resize_vector(self.__vector, l)
@@ -533,25 +538,24 @@ class SolutionTracer:
         """
 
         # manual detection
-        if self.__detection_strategy == TraceSettings.Strategy.Manual:
+        if self.__detection_strategy == TraceSettings.Strategy.MANUAL:
             step_size = np.clip(self.vector_length(self.__sing_diff) / 3, 0, self.__max_step)
             self.__vector = self.resize_vector(self.__vector, step_size)
             # if the step is too big, resize it
             if fabs(self.__vector[0]) > self.__max_dx:
                 self.__vector = self.resize_vector_by_x(self.__vector, self.__max_dx)
-            return
 
         # automatic detection
+        elif self.__detection_strategy == TraceSettings.Strategy.AUTOMATIC:
+            # resize vector to have normal dx
+            self.__vector = self.resize_vector_by_x(self.__vector, self.__max_dx)
 
-        # resize vector to have normal dx
-        self.__vector = self.resize_vector_by_x(self.__vector, self.__max_dx)
+            # if we continued a couple times in a row and the function seems to be monotonic ahead --> probably safe
+            if continue_count % 10 == 0 and self.__is_monotonous_on(point, 2 * self.__vector, 20):
+                return
 
-        # if we continued a couple times in a row and the function seems to be monotonic ahead --> probably safe
-        if continue_count % 10 == 0 and self.__is_monotonous_on(point, 2 * self.__vector, 20):
-            return
-
-        # resize vector to have the same dx as is used in singularity detection --> step of this size should be safe
-        self.__vector = self.resize_vector_by_x(self.__vector, self.__sing_dx)
+            # resize vector to have the same dx as is used in singularity detection --> step of this size should be safe
+            self.__vector = self.resize_vector_by_x(self.__vector, self.__sing_dx)
 
     def trace(self, x0: float, y0: float, direction: Direction) -> Iterator[Tuple[float, float]]:
         """Traces a solution curve starting at `(x0, y0)` in the given direction until it reaches a singularity or goes off screen.
@@ -559,14 +563,11 @@ class SolutionTracer:
         Args:
             x0 (float): x-coordinate of the starting point.
             y0 (float): y-coordinate of the starting point.
-            direction (Direction): Direction of the tracing. Either SolutionTracer.Direction.Right or SolutionTracer.Direction.Left.
+            direction (Direction): Direction of the tracing. Either Right or Left.
 
         Yields:
             curve (Iterator[Tuple[float, float]]): Iterator points that are on the curve.
         """
-
-        # check if the direction is valid
-        assert direction in [self.Direction.Right, self.Direction.Left]
 
         # yield the starting point
         yield (x0, y0)
@@ -594,7 +595,7 @@ class SolutionTracer:
 
         # length of the current curve segment
         current_curve_segment_length: float = 0
-        line_segment_start = point.copy()
+        curve_segment_start = point.copy()
 
         while True:
             try:
@@ -620,11 +621,11 @@ class SolutionTracer:
                 strategy = self.__handle_singularity(point[0], point[1])
 
                 # if tracing should stop
-                if strategy == self.Strategy.Stop:
+                if strategy == self.Strategy.STOP:
                     break
 
                 # if the function goes off to infinity
-                if strategy == self.Strategy.Infinite:
+                if strategy == self.Strategy.INFINITE:
                     # calculate last line segment
                     last_x, last_y = last_point[0], last_point[1]
                     last_slope = self.__slope_func(last_x, last_y)
@@ -636,15 +637,15 @@ class SolutionTracer:
                         yield (point[0], point[1])
                         return
 
-                    line_direction = SolutionTracer.Direction(sign(self.__slope) * direction.value)
+                    line_direction = SolutionTracer.VDirection(sign(self.__slope) * direction.value)
 
                     yield from self.__create_vertical_line(point[0], point[1], line_direction)
                     return
 
                 # if the tracing should continue
-                if strategy == self.Strategy.Continue:
+                if strategy == self.Strategy.CONTINUE:
                     # increment the continue count if automatic detection is used
-                    if self.__detection_strategy == TraceSettings.Strategy.Automatic:
+                    if self.__detection_strategy == TraceSettings.Strategy.AUTOMATIC:
                         continue_count += 1
                     self.__set_step_when_a_singularity_detected(point, continue_count)
 
@@ -664,9 +665,9 @@ class SolutionTracer:
             # yield a new point if the segment has reached the desired length
             current_curve_segment_length += self.vector_length(self.__vector)
 
-            if self.__should_yield_point(point, current_curve_segment_length, line_segment_start):
+            if self.__should_yield_point(point, current_curve_segment_length, curve_segment_start):
                 yield (point[0], point[1])
-                line_segment_start = point.copy()
+                curve_segment_start = point.copy()
                 current_curve_segment_length = 0
 
         # yield the last point

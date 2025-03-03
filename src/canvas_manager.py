@@ -365,7 +365,7 @@ class CanvasManager:
             y,
             self.__canvas.xlim,
             self.__canvas.ylim,
-            SolutionTracer.Direction.Right,
+            SolutionTracer.Direction.RIGHT,
             self.field_settings.function_string,
             current_settings,
         )
@@ -375,7 +375,7 @@ class CanvasManager:
             y,
             self.__canvas.xlim,
             self.__canvas.ylim,
-            SolutionTracer.Direction.Left,
+            SolutionTracer.Direction.LEFT,
             self.field_settings.function_string,
             current_settings,
         )

@@ -135,7 +135,7 @@ class VisualizerApp(QWidget):
         # add lock button to overlay
         self.__lock_button = LockButton(self)
         self.__lock_button.setShortcut("Ctrl+L")
-        self.__lock_button.setState(LockButton.LockState.Unlocked)
+        self.__lock_button.setState(LockButton.LockState.UNLOCKED)
         self.__lock_button.clicked.connect(self.__clicked_lock_canvas_button)
         overlay_layout.addWidget(self.__lock_button)
 

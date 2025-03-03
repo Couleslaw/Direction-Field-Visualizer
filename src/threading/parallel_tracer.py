@@ -33,7 +33,7 @@ class ParallelTracer(QObject):
         """
 
         # check if the direction is valid
-        assert direction in [SolutionTracer.Direction.Left, SolutionTracer.Direction.Right]
+        assert direction in [SolutionTracer.Direction.LEFT, SolutionTracer.Direction.RIGHT]
         super().__init__()
 
         # store the arguments

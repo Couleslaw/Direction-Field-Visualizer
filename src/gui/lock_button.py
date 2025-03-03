@@ -17,8 +17,8 @@ class LockButton(QPushButton):
     class LockState(Enum):
         """Class to represent the state of the lock button."""
 
-        Locked = 0
-        Unlocked = 1
+        LOCKED = 0
+        UNLOCKED = 1
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -63,9 +63,9 @@ class LockButton(QPushButton):
 
     def setState(self, state: LockState) -> None:
         """Lock or unlock the button."""
-        assert state in [self.LockState.Locked, self.LockState.Unlocked]
+        assert state in [self.LockState.LOCKED, self.LockState.UNLOCKED]
         self.state = state
-        if state == self.LockState.Locked:
+        if state == self.LockState.LOCKED:
             self.setIcon(self.__locked_icon)
             self.setToolTip(self.__locked_tooltip + self.__shortcut_str)
         else:
@@ -74,7 +74,7 @@ class LockButton(QPushButton):
 
     def __on_clicked(self) -> None:
         """Changes the state of the button."""
-        if self.state == self.LockState.Locked:
-            self.setState(self.LockState.Unlocked)
+        if self.state == self.LockState.LOCKED:
+            self.setState(self.LockState.UNLOCKED)
         else:
-            self.setState(self.LockState.Locked)
+            self.setState(self.LockState.LOCKED)

@@ -239,9 +239,9 @@ class TraceSettingsDialog(QDialog):
 
         # Set initial state
         strategy = self.__settings.get_preferred_detection_for(self.__slope_function_str)
-        self.__radio_automatic_settings.setChecked(strategy == TraceSettings.Strategy.Automatic)
-        self.__radio_manual_settings.setChecked(strategy == TraceSettings.Strategy.Manual)
-        self.__radio_none_settings.setChecked(strategy == TraceSettings.Strategy.None_)
+        self.__radio_automatic_settings.setChecked(strategy == TraceSettings.Strategy.AUTOMATIC)
+        self.__radio_manual_settings.setChecked(strategy == TraceSettings.Strategy.MANUAL)
+        self.__radio_none_settings.setChecked(strategy == TraceSettings.Strategy.NONE)
         self.__switch_detection_settings()  # Ensure correct initial state
 
     def __create_automatic_detection_settings(self, layout: QVBoxLayout) -> None:
@@ -348,7 +348,7 @@ What if there are multiple singularities? Just multiply them together!
         # auto detection --> accept
         if self.__radio_automatic_settings.isChecked():
             self.__settings.set_preferred_detection_for(
-                self.__slope_function_str, TraceSettings.Strategy.Automatic
+                self.__slope_function_str, TraceSettings.Strategy.AUTOMATIC
             )
             super().accept()
             return
@@ -356,7 +356,7 @@ What if there are multiple singularities? Just multiply them together!
         # no detection --> accept
         if self.__radio_none_settings.isChecked():
             self.__settings.set_preferred_detection_for(
-                self.__slope_function_str, TraceSettings.Strategy.None_
+                self.__slope_function_str, TraceSettings.Strategy.NONE
             )
             super().accept()
             return
@@ -369,7 +369,7 @@ What if there are multiple singularities? Just multiply them together!
             # if wants manual --> show warning
             if (
                 self.__settings.get_preferred_detection_for(self.__slope_function_str)
-                == TraceSettings.Strategy.Manual
+                == TraceSettings.Strategy.MANUAL
             ):
                 QMessageBox.warning(self, "Warning", f"Please enter a singularity equation.")
                 return
@@ -383,7 +383,7 @@ What if there are multiple singularities? Just multiply them together!
         # if same equation --> accept
         if equation == previous_equation:
             self.__settings.set_preferred_detection_for(
-                self.__slope_function_str, TraceSettings.Strategy.Manual
+                self.__slope_function_str, TraceSettings.Strategy.MANUAL
             )
             super().accept()
             return
@@ -393,7 +393,7 @@ What if there are multiple singularities? Just multiply them together!
             self.__slope_function_str, equation, self.__xlim, self.__ylim
         ):
             self.__settings.set_preferred_detection_for(
-                self.__slope_function_str, TraceSettings.Strategy.Manual
+                self.__slope_function_str, TraceSettings.Strategy.MANUAL
             )
             super().accept()
         else:

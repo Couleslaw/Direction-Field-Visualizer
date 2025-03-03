@@ -27,7 +27,7 @@ MAX_TRACE_MAX_STEP_GRANULARITY = 6
 
 # singularity_alert_dist = diagonal / 10^Granulity
 MIN_SINGULARITY_ALERT_DIST_GRANULARITY = 1.5
-MAX_SINGULARITY_ALERT_DIST_GRANULARITY = 3
+MAX_SINGULARITY_ALERT_DIST_GRANULARITY = 4
 
 # granularity is linearly interpolated from precision
 MIN_TRACE_PRECISION = 1

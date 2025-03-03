@@ -14,9 +14,9 @@ class TraceSettings:
     class Strategy(Enum):
         """Strategy of singularity detection"""
 
-        Automatic = 0
-        Manual = 1
-        None_ = 2
+        AUTOMATIC = 0
+        MANUAL = 1
+        NONE = 2
 
     def __init__(self) -> None:
         self.line_color = DEFAULT_TRACE_COLOR
@@ -94,14 +94,14 @@ class TraceSettings:
 
     def get_preferred_detection_for(self, slope_func: str) -> Strategy:
         """Returns the preferred detection strategy for the given function."""
-        return self.__preferred_detection.get(slope_func, self.Strategy.Automatic)
+        return self.__preferred_detection.get(slope_func, self.Strategy.AUTOMATIC)
 
     def set_preferred_detection_for(self, slope_func: str, detection: Strategy) -> None:
         """Remembers the preferred detection strategy for the given function."""
         assert detection in [
-            self.Strategy.Automatic,
-            self.Strategy.Manual,
-            self.Strategy.None_,
+            self.Strategy.AUTOMATIC,
+            self.Strategy.MANUAL,
+            self.Strategy.NONE,
         ]
         self.__preferred_detection[slope_func] = detection
 
