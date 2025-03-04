@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QMessageBox
 from matplotlib.backend_bases import MouseEvent
 import numpy as np
 
-np.seterr(divide="raise", invalid="ignore")
+np.seterr(divide="ignore", invalid="ignore")
 
 
 from src.math_functions import *
@@ -269,7 +269,7 @@ class CanvasManager:
         self.__canvas.xlim = xlim
         self.__canvas.ylim = ylim
         self.__canvas.app.update_displayed_axes_limits()
-        self.draw_field()
+        self.draw_field(keep_cache=False)
 
     def set_new_function(self, new_function_str: str) -> bool:
         """Sets a new slope-function to be draw if it is valid.
@@ -308,7 +308,7 @@ class CanvasManager:
         self.field_settings.function_string = new_function_str
         return True
 
-    def draw_field(self, keep_cache: bool = False) -> None:
+    def draw_field(self, *, keep_cache: bool) -> None:
         """Draws the direction field. If keep_cache is False, the arrow-cache is cleared."""
 
         self.trace_manager.stop_tracing()
@@ -402,9 +402,15 @@ class CanvasManager:
         self.remove_mouse_line_from_plot()
 
         # calculate coordinates of the new arrow
-        line_info = self.__field_builder.get_arrow(
-            self.__mouse_pos[0], self.__mouse_pos[1], self.mouse_line_length, use_cache=False
-        )
+        try:
+            x = np.float64(self.__mouse_pos[0])
+            y = np.float64(self.__mouse_pos[1])
+            line_info = self.__field_builder.get_arrow(
+                x, y, self.mouse_line_length, use_cache=False
+            )
+        except:
+            QMessageBox.critical(self.__canvas.app, "Error", f"Invalid function.")
+            return
 
         # if the mouse cursor is in an area where the function is not defined --> return
         if line_info is None:

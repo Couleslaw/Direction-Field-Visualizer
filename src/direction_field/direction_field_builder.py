@@ -15,7 +15,7 @@ class DirectionFieldBuilder:
 
     def __init__(self, plot_axes: Axes, settings: DirectionFieldSettings) -> None:
         self.__settings = settings
-        self.__arrows_cache: Dict[Tuple[float, float], NDArray[np.float64]] = {}
+        self.__arrows_cache: Dict[Tuple[np.floating, np.floating], NDArray[np.floating]] = {}
         self.__plot_axes = plot_axes
 
     def clear_arrow_cache(self) -> None:
@@ -23,21 +23,21 @@ class DirectionFieldBuilder:
         self.__arrows_cache = {}
 
     def get_arrow(
-        self, x: float, y: float, arrow_len: float, use_cache: bool = True
+        self, x: np.floating, y: np.floating, arrow_len: float, *, use_cache: bool = True
     ) -> NDArray[np.float64] | None:
         """_summary_
 
         Args:
-            x (float): the x coordinate of the arrow center.
-            y (float): the y coordinate of the arrow center.
+            x (np.floating): the x coordinate of the arrow center.
+            y (np.floating): the y coordinate of the arrow center.
             arrow_len (float): the length of the arrow vector.
             use_cache (bool, optional): Looks for the result in cache first if set to True. Defaults to True.
 
         Raises:
-            NameError: when the slope function is invalid.
+            Exception: when the slope function is invalid.
 
         Returns:
-            arrow (NDArray[np.float64]): `[s1,s2,v1,v2]` where `(s1,s2)` is the start of the arrow and `(v1,v2)` is the vector of the arrow.
+            arrow (NDArray[np.floating]): `[s1,s2,v1,v2]` where `(s1,s2)` is the start of the arrow and `(v1,v2)` is the vector of the arrow.
             This means that `s + v` is the end of the arrow.
         """
 
@@ -48,21 +48,17 @@ class DirectionFieldBuilder:
         # try to evaluate the slope function
         try:
             der = self.__settings.function(x, y)
+            if der == np.inf or der == -np.inf:
+                return None
             vector = np.array([1, der])
-        # this is raised in the case of nonzero/0 --> draw a vertical line
-        except FloatingPointError:
-            vector = np.array([0, 1])
-        # this is raised in the case of 0/0  --> dont draw anything
-        except ZeroDivisionError:
-            return None
         # this is raised if the function is not defined at the point e.i. sqrt(-1)
         except ValueError:
             return None
-        # e.i sinsin(x) --> this is taken care of later
-        except NameError as e:
+        # the slope function is invalid
+        except Exception as e:
             raise e
 
-        center = np.array([x, y])
+        center = np.array([x, y], dtype=float)
         vector = vector / np.linalg.norm(vector) * arrow_len
         result = np.append(center - vector / 2, vector)
 
@@ -72,26 +68,22 @@ class DirectionFieldBuilder:
 
         return result
 
-    def __get_curvature_at(self, x: float, y: float, dx: float) -> float:
+    def __get_curvature_at(self, x: np.floating, y: np.floating, dx: float) -> np.floating:
         """
         Returns the curvature of the function at the point (x, y).
 
         Note: something that needs to be dealt with are cases similar to the following:
             y' = -x/y and (x,y) = (5, almost 0).
-        The solution to the ODE are circles, so the curvature is 1/radius, but in practice we run into the limitation of floating point number and will get insanely high curvature.
-        Solution: round number close to integers to integers. Now the curvature will raise a `ZeroDivisionError` and we can handle it.
-        How? Shift the point a little bit and calculate the curvature there. If it still raises an error, something weird is going on and we return 0.
+        The solution to the ODE are circles, so the curvature is 1/radius, but in practice we run into the limitation of np.floating point number and will get insanely high curvature.
+        Solution: round number close to integers to integers. Now the curvature will be `np.inf` and we can handle it.
+        How? Shift the point a little bit and calculate the curvature there. If it still is `np.inf`, something weird is going on and we return 0.
         """
 
-        # if the point is almost an integer, round it
-        if fabs(x - int(x)) < dx:
-            x = int(x)
-        if fabs(y - int(y)) < dx:
-            y = int(y)
-
-        def calculate_curvature(x: float, y: float) -> float:
-            """Returns the curvature of the slope function at the point (x, y)."""
+        def calculate_curvature(x: np.floating, y: np.floating) -> np.floating | None:
+            """Returns the curvature of the slope function at the point (x, y) or None if the function is not defined here."""
             dy = self.__settings.function(x, y)
+            if dy == np.inf or dy == -np.inf:
+                return None
             d2y = (
                 self.__settings.function(x + dx, y + dx * dy)
                 - self.__settings.function(x - dx, y - dx * dy)
@@ -99,38 +91,51 @@ class DirectionFieldBuilder:
             return d2y / (1 + dy**2) ** 1.5
 
         try:
-            return calculate_curvature(x, y)
-        except:
-            # shifts for x and y for recalculating the curvature
-            xlim = self.__plot_axes.get_xlim()
-            ylim = self.__plot_axes.get_ylim()
-            shift_x = max(0.002, (xlim[1] - xlim[0]) / 1000)
-            shift_y = max(0.002, (ylim[1] - ylim[0]) / 1000)
+            # if the curvature is really big --> try rounding the point and recalculating the curvature
+            if (curv := calculate_curvature(x, y)) is None or np.abs(curv) > 1e6:
+                if fabs(x - int(x)) < dx:
+                    x = np.round(x)
+                if fabs(y - int(y)) < dx:
+                    y = np.round(y)
+            else:
+                return curv
 
-            # try shifting y
-            try:
-                return calculate_curvature(x, y + shift_y)
-            except:
-                # try shifting x
-                try:
-                    return calculate_curvature(x + shift_x, y)
-                except:
-                    # if both fail, return 0
-                    return 0
+            # recalculate after rounding
+            if (curv := calculate_curvature(x, y)) is not None:
+                return curv
+
+            # shift x and try recalculating the curvature
+            xlim = self.__plot_axes.get_xlim()
+            x += max(0.002, (xlim[1] - xlim[0]) / 1000)
+            if (curv := calculate_curvature(x, y)) is not None:
+                return curv
+
+            # shift y and try recalculating the curvature
+            ylim = self.__plot_axes.get_ylim()
+            y += max(0.002, (ylim[1] - ylim[0]) / 1000)
+            if (curv := calculate_curvature(x, y)) is not None:
+                return curv
+
+            # something weird is going on
+            return np.float64(0)
+
+        except:
+            # something weird is going on
+            return np.float64(0)
 
     def __normalize_curvatures(
-        self, curvatures: NDArray[np.float64], off_screen: Sequence[bool]
+        self, curvatures: NDArray[np.floating], off_screen: Sequence[bool]
     ) -> NDArray[np.float64]:
         """Normalizes curvatures to values to `[0,1]`. When the max curvature for normalization is searched for,
         the most extreme value and the values on indices where `off_screen` is `True` are ignored.
 
         Args:
-            curvatures (NDArray[np.float64]): Curvatures at arrow locations.
+            curvatures (NDArray[np.floating]): Curvatures at arrow locations.
             off_screen (Sequence[bool]):
                 Should be `len(curvatures) == len(off_screen)`. Says which points are on screen.
 
         Returns:
-            out (NDArray[np.float64]): Normalized curvatures
+            out (NDArray[np.floating]): Normalized curvatures
         """
 
         assert len(curvatures) == len(off_screen)
@@ -168,7 +173,7 @@ class DirectionFieldBuilder:
             Normalize(clip=True, vmin=0, vmax=normalization_max)(curvatures), dtype=np.float64
         )
 
-    def get_colors(self, points: Sequence[Tuple[float, float]]) -> str | np.ndarray:
+    def get_colors(self, points: Sequence[Tuple[np.floating, np.floating]]) -> str | np.ndarray:
         """Returns colors for the arrows based on the curvature of the function at the arrow's center."""
 
         # color every arrow black if colors are turned off
@@ -181,9 +186,11 @@ class DirectionFieldBuilder:
         curvature_dx = self.__settings.curvature_dx
 
         #  calculate curvatures
-        curvatures: list[float] = []
+        curvatures: list[np.floating] = []
         off_screen: list[bool] = []
         for x, y in points:
+            if abs(x - 0) <= 0.001:
+                print(x, y, self.__get_curvature_at(x, y, curvature_dx))
             curvatures.append(self.__get_curvature_at(x, y, curvature_dx))
             off_screen.append(
                 False if (xlim[0] <= x <= xlim[1] and ylim[0] <= y <= ylim[1]) else True
@@ -195,12 +202,14 @@ class DirectionFieldBuilder:
         color_map = self.__settings.color_map
         return cm.get_cmap(color_map)(normalized_curvatures**exponent)
 
-    def get_arrows(self) -> Tuple[NDArray[np.float64], List[Tuple[float, float]]] | None:
+    def get_arrows(
+        self,
+    ) -> Tuple[NDArray[np.floating], List[Tuple[np.floating, np.floating]]] | None:
         """_summary_
 
         Returns
         ------
-        arrows, arrow_centers : (NDArray[np.float64], List[Tuple[float, float]]):
+        arrows, arrow_centers : (NDArray[np.floating], List[Tuple[float, float]]):
             If the slope function is valid, where `arrows` is a 4xN array of arrow data.
         None:
             If the slope function is invalid.
@@ -227,7 +236,7 @@ class DirectionFieldBuilder:
         ys = np.arange(f(ylim[0], y_step) - y_margin, ylim[1] + y_step + y_margin, y_step)
 
         # calculate arrows and their centers
-        arrow_centers: List[Tuple[float, float]] = []
+        arrow_centers: List[Tuple[np.floating, np.floating]] = []
         arrows: List[NDArray[np.float64]] = []
         try:
             for x in xs:
@@ -241,7 +250,7 @@ class DirectionFieldBuilder:
             return np.array(arrows).T, arrow_centers
 
         # if the slope function is invalid
-        except NameError:
+        except:
             return None
 
 
@@ -252,7 +261,7 @@ class DirectionFieldPlotter:
         self.__plot_axes = plot_axes
         self.__settings = settings
 
-    def draw_field(self, arrows: NDArray[np.float64], colors: str | np.ndarray) -> None:
+    def draw_field(self, arrows: NDArray[np.floating], colors: str | np.ndarray) -> None:
         """Draws the direction field on the plot."""
 
         # check if arrows are in correct data format

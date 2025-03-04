@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 from numpy.typing import NDArray
-from numpy import floating
 
-from src.math_functions import sign, fabs, create_function_from_string
+from src.math_functions import create_function_from_string
 from src.default_constants import TRACE_NUM_SEGMENTS_IN_DIAGONAL
 from src.tracing.numerical_methods import find_first_intersection
 from src.tracing.trace_settings import TraceSettings
@@ -36,20 +35,20 @@ class SolutionTracer:
         CONTINUE = 3
 
     @staticmethod
-    def vector_length(vector: NDArray[floating]) -> float:
+    def vector_length(vector: NDArray[np.floating]) -> float:
         return float(np.linalg.norm(vector))
 
     @staticmethod
-    def resize_vector(vector: NDArray[floating], length: float) -> NDArray[floating]:
+    def resize_vector(vector: NDArray[np.floating], length: float) -> NDArray[np.floating]:
         return vector * length / SolutionTracer.vector_length(vector)
 
     @staticmethod
-    def resize_vector_by_x(vector: NDArray[floating], new_x: float) -> NDArray[floating]:
-        return vector * new_x / fabs(vector[0])
+    def resize_vector_by_x(vector: NDArray[np.floating], new_x: float) -> NDArray[np.floating]:
+        return vector * new_x / np.fabs(vector[0])
 
     @staticmethod
-    def round_if_close_to_zero(x: float, epsilon: float = 1e-9) -> float:
-        return 0 if (fabs(x) < epsilon) else x
+    def round_if_close_to_zero(x: np.floating, epsilon: float = 1e-9) -> np.floating:
+        return np.float64(0) if (np.fabs(x) < epsilon) else x
 
     def __init__(
         self,
@@ -92,7 +91,7 @@ class SolutionTracer:
 
         # private fields for tracing
         """Tracing direction. Either Right or Left."""
-        self.__slope: float
+        self.__slope: np.floating
         """Current slope of the solution curve."""
         self.__vector: NDArray[np.float64]
         """A vector in `self.__direction` with slope `self.__slope`."""
@@ -137,24 +136,24 @@ class SolutionTracer:
 
         assert len(start) == 2 == len(diff_vector)
 
-        sgn = sign(self.__slope_func(start[0], start[1]))
+        sgn = np.sign(self.__slope_func(start[0], start[1]))
         diff = diff_vector / num_points
 
         # try because slope_func is unsafe
         try:
             for _ in range(num_points):
                 start += diff
-                if sign(self.__slope_func(start[0], start[1])) != sgn:
+                if np.sign(self.__slope_func(start[0], start[1])) != sgn:
                     return False
             return True
         except:
             return False
 
-    def __should_stop_if_y_out_of_bounds(self, y: float) -> bool:
+    def __should_stop_if_y_out_of_bounds(self, y: np.floating) -> bool:
         """Determines whether the tracing should stop if the y-coordinate is out of bounds.
 
         Args:
-            y (float): Current y-coordinate.
+            y (floating): Current y-coordinate.
 
         Returns:
             decision (bool): True if the tracing should stop, False otherwise.
@@ -165,17 +164,17 @@ class SolutionTracer:
             return False
 
         # distance from edge of the screen
-        dist = fabs(y - self.__ylim[0]) if y < self.__ylim[0] else fabs(y - self.__ylim[1])
+        dist = np.fabs(y - self.__ylim[0]) if y < self.__ylim[0] else np.fabs(y - self.__ylim[1])
 
         # automatic detection --> cut off when further than screen_height * y_margin
         return dist > (self.__ylim[1] - self.__ylim[0]) * self.__settings.y_margin
 
-    def __possible_singularity_at(self, x: float, y: float) -> bool:
+    def __possible_singularity_at(self, x: np.floating, y: np.floating) -> bool:
         """Checks if there might a singularity close to the point `(x, y)`.
 
         Args:
-            x (float): x coordinate of the point.
-            y (float): y coordinate of the point.
+            x (floating): x coordinate of the point.
+            y (floating): y coordinate of the point.
 
         Returns:
             result (bool): True if a singularity is close, False otherwise.
@@ -188,7 +187,7 @@ class SolutionTracer:
         # if automatic detection is enabled, check if the slope is too steep
         if self.__detection_strategy == TraceSettings.Strategy.AUTOMATIC:
             try:  # slope_func is unsafe
-                return fabs(self.__slope_func(x, y)) > self.__settings.singularity_min_slope
+                return np.fabs(self.__slope_func(x, y)) > self.__settings.singularity_min_slope
             except:
                 # probably division by zero --> close to singularity
                 return True
@@ -207,7 +206,7 @@ class SolutionTracer:
             self.__sing_diff = self.resize_vector(
                 self.__vector, 10 * self.__singularity_alert_distance
             )
-            if fabs(self.__sing_diff[0]) < self.__max_dx:
+            if np.fabs(self.__sing_diff[0]) < self.__max_dx:
                 self.__sing_diff = self.resize_vector_by_x(self.__sing_diff, self.__max_dx)
             return False
 
@@ -218,19 +217,19 @@ class SolutionTracer:
         # very high slope --> the diff will probably be x=0 and y>>x
         if (
             not (self.__ylim[0] <= y <= self.__ylim[1])
-            and fabs(self.__slope) > 1e9
-            and fabs(self.__sing_diff[0]) < self.__max_dx
+            and np.fabs(self.__slope) > 1e9
+            and np.fabs(self.__sing_diff[0]) < self.__max_dx
         ):
             return True
 
         return False
 
-    def __handle_singularity(self, x: float, y: float) -> Strategy:
+    def __handle_singularity(self, x: np.floating, y: np.floating) -> Strategy:
         """This function should be called when there is reason to believe that a singularity is close to the point `(x, y)`.
 
         Args:
-            x (float): x coordinate of the current point.
-            y (float): y coordinate of the current point.
+            x (floating): x coordinate of the current point.
+            y (floating): y coordinate of the current point.
 
         Returns
         ------
@@ -250,7 +249,7 @@ class SolutionTracer:
         if self.__detection_strategy == TraceSettings.Strategy.MANUAL and (
             y < self.__ylim[0] or y > self.__ylim[1]
         ):
-            if fabs(self.__slope_func(x, y)) > 1:
+            if np.fabs(self.__slope_func(x, y)) > 1:
                 return self.Strategy.INFINITE
             return self.Strategy.STOP
 
@@ -282,10 +281,10 @@ class SolutionTracer:
                     diff = self.resize_vector(np.array([1, der]), self.__min_step)
 
                 # correct the direction
-                if sign(diff[0]) != sign(self.__vector[0]):
+                if np.sign(diff[0]) != np.sign(self.__vector[0]):
                     diff *= -1
                 # if the jump is too big, resize it
-                if fabs(diff[0]) > self.__sing_dx:
+                if np.fabs(diff[0]) > self.__sing_dx:
                     diff = self.resize_vector_by_x(diff, self.__sing_dx)
                 if self.vector_length(diff) > self.__max_step:
                     diff = self.resize_vector(diff, self.__max_step)
@@ -315,7 +314,7 @@ class SolutionTracer:
                 return self.vector_length(self.__sing_diff) > self.__min_step
 
             # if the slope is very steep, there is almost certainly a singularity --> STOP
-            if fabs(der) > 1e6:
+            if np.fabs(der) > 1e6:
                 return False
 
             # this is automatic detection --> steep slope
@@ -406,9 +405,9 @@ class SolutionTracer:
 
         # the distance of point.y from the y-edge of the screen
         dist = (
-            fabs(point[1] - self.__ylim[0])
+            np.fabs(point[1] - self.__ylim[0])
             if point[1] < self.__ylim[0]
-            else fabs(point[1] - self.__ylim[1])
+            else np.fabs(point[1] - self.__ylim[1])
         )
 
         # yield if the segment is long enough
@@ -416,19 +415,19 @@ class SolutionTracer:
         return current_curve_segment_length > length_needed
 
     def __create_vertical_line(
-        self, x0: float, y0: float, direction: VDirection
-    ) -> Iterator[Tuple[float, float]]:
+        self, x0: np.floating, y0: np.floating, direction: VDirection
+    ) -> Iterator[Tuple[np.floating, np.floating]]:
         """Creates a vertical line starting at `(x0, y0)` in the given direction.
         The line can either go off screen or stop (if a singularity is detected).
         This function should be called when an INFINITE singularity is detected.
 
         Args:
-            x0 (float): x-coordinate of the starting point.
-            y0 (float): y-coordinate of the starting point.
+            x0 (floating): x-coordinate of the starting point.
+            y0 (floating): y-coordinate of the starting point.
             direction (VDirection): Direction of the line. Either UP or DOWN.
 
         Yields:
-            line (Iterator[Tuple[float, float]]): Iterator of points on the line.
+            line (Iterator[Tuple[floating, floating]]): Iterator of points on the line.
         """
 
         # save the original distance to singularity
@@ -446,7 +445,11 @@ class SolutionTracer:
                 step = self.__max_step
             # if y out of screen --> jump 1/100 of the distance to the edge
             else:
-                dist = fabs(y - self.__ylim[0]) if y < self.__ylim[0] else fabs(y - self.__ylim[1])
+                dist = (
+                    np.fabs(y - self.__ylim[0])
+                    if y < self.__ylim[0]
+                    else np.fabs(y - self.__ylim[1])
+                )
                 step = max(dist / 100, self.__max_step)
             return step * direction.value
 
@@ -497,14 +500,14 @@ class SolutionTracer:
                 break
 
             # if the slope changes sign --> STOP
-            if sign(der) != sign(n_der):
+            if np.sign(der) != np.sign(n_der):
                 break
 
             point += diff_to_next_point
 
             # if by correcting position for MANUAL detection, the point got moved far from x0
             # something is wrong --> STOP
-            if fabs(point[0] - x0) > (self.__xlim[1] - self.__xlim[0]) / 50:
+            if np.fabs(point[0] - x0) > (self.__xlim[1] - self.__xlim[0]) / 50:
                 break
 
             current_line_segment_length += self.vector_length(diff_to_next_point)
@@ -554,7 +557,7 @@ class SolutionTracer:
             step_size = np.clip(self.vector_length(self.__sing_diff) / 3, 0, self.__max_step)
             self.__vector = self.resize_vector(self.__vector, step_size)
             # if the step is too big, resize it
-            if fabs(self.__vector[0]) > self.__max_dx:
+            if np.fabs(self.__vector[0]) > self.__max_dx:
                 self.__vector = self.resize_vector_by_x(self.__vector, self.__max_dx)
 
         # automatic detection
@@ -569,16 +572,16 @@ class SolutionTracer:
             # resize vector to have the same dx as is used in singularity detection --> step of this size should be safe
             self.__vector = self.resize_vector_by_x(self.__vector, self.__sing_dx)
 
-    def trace(self, x0: float, y0: float) -> Iterator[Tuple[float, float]]:
+    def trace(self, x0: np.floating, y0: np.floating) -> Iterator[Tuple[np.floating, np.floating]]:
         """Traces a solution curve starting at `(x0, y0)` in the given direction until it reaches a singularity or goes off screen.
 
         Args:
-            x0 (float): x-coordinate of the starting point.
-            y0 (float): y-coordinate of the starting point.
+            x0 (floating): x-coordinate of the starting point.
+            y0 (floating): y-coordinate of the starting point.
             direction (Direction): Direction of the tracing. Either Right or Left.
 
         Yields:
-            curve (Iterator[Tuple[float, float]]): Iterator points that are on the curve.
+            curve (Iterator[Tuple[floating, floating]]): Iterator points that are on the curve.
         """
 
         # current and last points
@@ -630,16 +633,16 @@ class SolutionTracer:
                     # calculate last line segment
                     last_x, last_y = last_point[0], last_point[1]
                     last_slope = self.__slope_func(last_x, last_y)
-                    if sign(last_slope) != sign(self.__slope):
+                    if np.sign(last_slope) != np.sign(self.__slope):
                         self.__slope = last_slope
                         point = last_point
 
-                    if sign(self.__slope) == 0:
+                    if np.sign(self.__slope) == 0:
                         yield (point[0], point[1])
                         return
 
                     line_direction = SolutionTracer.VDirection(
-                        sign(self.__slope) * self.__direction.value
+                        np.sign(self.__slope) * self.__direction.value
                     )
 
                     yield from self.__create_vertical_line(point[0], point[1], line_direction)

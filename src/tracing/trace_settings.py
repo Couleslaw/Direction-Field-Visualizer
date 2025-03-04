@@ -75,13 +75,12 @@ class TraceSettings:
         try:
             func = create_function_from_string(equation_str)
             # try to evaluate the equation at a few random points
-            for _ in range(num_random_checks):
+            xs = np.random.uniform(xlim[0], xlim[1], num_random_checks)
+            ys = np.random.uniform(ylim[0], ylim[1], num_random_checks)
+
+            for i in range(num_random_checks):
                 try:
-                    x = np.random.uniform(xlim[0], xlim[1])
-                    y = np.random.uniform(ylim[0], ylim[1])
-                    func(x, y)
-                except ZeroDivisionError:  # can be a singularity
-                    pass
+                    func(xs[i], ys[i])
                 except ValueError:  # it might not be defined everywhere
                     pass
         except:
@@ -148,5 +147,5 @@ class TraceSettings:
         )
 
 
-CurveInfo: TypeAlias = Tuple[TraceSettings, List[Tuple[float, float]]]
+CurveInfo: TypeAlias = Tuple[TraceSettings, List[Tuple[np.floating, np.floating]]]
 """Settings of the curve + the curve itself given as a list of coordinates."""

@@ -26,6 +26,8 @@ from math import (
 )
 
 from typing import Callable, Any
+from numpy import floating
+import regex as re
 
 # define some other common math function
 ln = log
@@ -39,8 +41,11 @@ acsc: Callable[[float], float] = lambda x: asin(1 / x)
 sign: Callable[[float], int] = lambda x: int((x > 0)) - int((x < 0))
 
 
-def create_function_from_string(string: str) -> Callable[[float, float], float] | Any:
+def create_function_from_string(string: str) -> Callable[[floating, floating], floating] | Any:
     """Receives a string that should be a mathematical function f(x,y) and returns a lambda expression."""
+    # check using reges if the string contains `input`
+    if re.search(r"\binput\b", string):
+        return None
     return eval(f"lambda x, y: {string}")
 
 

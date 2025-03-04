@@ -237,4 +237,4 @@ class Canvas(FigureCanvas):
 
     def redraw(self) -> None:
         """Redraws the plot."""
-        self.manager.draw_field()
+        self.manager.draw_field(keep_cache=False)

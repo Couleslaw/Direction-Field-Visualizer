@@ -1,6 +1,7 @@
 from src.math_functions import create_function_from_string, sqrt
 from src.default_constants import *
 from typing import Tuple, Callable, Any
+from numpy import floating
 
 
 class DirectionFieldSettings:
@@ -23,7 +24,7 @@ class DirectionFieldSettings:
 
         # slope function
         self.function_string: str = DEFAULT_FUNCTION
-        self.function: Callable[[float, float], float] | Any = create_function_from_string(
+        self.function: Callable[[floating, floating], floating] | Any = create_function_from_string(
             self.function_string
         )
 

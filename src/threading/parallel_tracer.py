@@ -1,5 +1,6 @@
 from PyQt6.QtCore import pyqtSignal, QObject, QMutex
 from typing import List, Tuple
+from numpy import float64
 
 from src.tracing.solution_tracer import SolutionTracer
 from src.tracing.trace_settings import TraceSettings, CurveInfo
@@ -37,8 +38,8 @@ class ParallelTracer(QObject):
         super().__init__()
 
         # store the arguments
-        self.__x = x
-        self.__y = y
+        self.__x = float64(x)
+        self.__y = float64(y)
         self.__xlim = xlim
         self.__ylim = ylim
 
@@ -52,7 +53,7 @@ class ParallelTracer(QObject):
         self.__empty_iterator: bool = False
 
         # the curve that is being traced
-        self.__curve: List[Tuple[float, float]] = []
+        self.__curve: List[Tuple[floating, floating]] = []
 
         # mutex for thread safety
         self.__mutex = QMutex()

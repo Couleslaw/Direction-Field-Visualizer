@@ -1,30 +1,33 @@
 from typing import Callable, Tuple
-from math import fabs
+from numpy import floating, fabs
 
 
 def newtons_method(
-    function: Callable[[float], float], x0: float, precision: float = 1e-5, max_iter: int = 30
-) -> float:
+    function: Callable[[floating], floating],
+    x0: floating,
+    precision: float = 1e-5,
+    max_iter: int = 30,
+) -> floating:
     """Newton's method for finding roots of a function.
 
     Args:
-        function (Callable[[float], float]): Function to find the root of.
-        x0 (float): Initial guess.
+        function (Callable[[floating], floating]): Function to find the root of.
+        x0 (floating): Initial guess.
         precision (float, optional): Desired relative error. Defaults to 1e-5.
         max_iter (int, optional): Maximum number of iterations. Defaults to 30.
 
     Returns:
-        out (float): The best estimate of the root found.
+        out (floating): The best estimate of the root found.
     """
 
-    def relative_error(xnew: float, xlast: float) -> float:
+    def relative_error(xnew: floating, xlast: floating) -> floating:
         # if there would be division by zero --> shift a bit
         if xnew == 0:
             xnew += precision
             xlast += precision
         return fabs((xnew - xlast) / xnew)
 
-    def derivative(function: Callable[[float], float], x: float) -> float:
+    def derivative(function: Callable[[floating], floating], x: floating) -> floating:
         dx = 1e-12
         return (function(x + dx) - function(x - dx)) / (2 * dx)
 
@@ -45,22 +48,22 @@ def newtons_method(
 
 
 def find_first_intersection(
-    equation: Callable[[float, float], float],
-    slope: float,
-    x0: float,
-    y0: float,
-) -> Tuple[float, float]:
+    equation: Callable[[floating, floating], floating],
+    slope: floating,
+    x0: floating,
+    y0: floating,
+) -> Tuple[floating, floating]:
     """Draws a line passing through `(x0, y0)` with slope `slope` and tries to find the closest intersection of this line with the function `equation(x,y)=0`.
 
     Args:
-        equation (Callable[[float, float], float]): Equation `0 = g(x, y)`. (Giving where the slope function has singularities)
-        slope (float): slope of the line
-        x0 (float): initial `x` value
-        y0 (float): initial `y` value
+        equation (Callable[[floating, floating], floating]): Equation `0 = g(x, y)`. (Giving where the slope function has singularities)
+        slope (floating): slope of the line
+        x0 (floating): initial `x` value
+        y0 (floating): initial `y` value
 
     Returns
     -------
-    x, y : (float, float):
+    x, y : (floating, floating):
         The coordinates of the intersection point
 
     Example
@@ -72,7 +75,7 @@ def find_first_intersection(
     The closes value to `x0 = 2` is `x = 0`, so this function should return (0, 1)
     """
 
-    def line(x: float) -> float:
+    def line(x: floating) -> floating:
         return y0 + slope * (x - x0)
 
     xguess = newtons_method(lambda x: equation(x, line(x)), x0)
