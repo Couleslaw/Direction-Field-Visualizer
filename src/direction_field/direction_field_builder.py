@@ -190,7 +190,6 @@ class DirectionFieldBuilder:
         off_screen: list[bool] = []
         for x, y in points:
             if abs(x - 0) <= 0.001:
-                print(x, y, self.__get_curvature_at(x, y, curvature_dx))
             curvatures.append(self.__get_curvature_at(x, y, curvature_dx))
             off_screen.append(
                 False if (xlim[0] <= x <= xlim[1] and ylim[0] <= y <= ylim[1]) else True
