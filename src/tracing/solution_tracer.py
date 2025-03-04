@@ -63,6 +63,7 @@ class SolutionTracer:
         Args:
             settings (TraceSettings): Settings for the tracing.
             slope_function_string (str): String representation of the slope function.
+            direction (Direction): Direction of the tracing. Either Right or Left.
             xlim (Tuple[float, float]): Limits for the x-axis.
             ylim (Tuple[float, float]): Limits for the y-axis.
         """
@@ -578,7 +579,6 @@ class SolutionTracer:
         Args:
             x0 (floating): x-coordinate of the starting point.
             y0 (floating): y-coordinate of the starting point.
-            direction (Direction): Direction of the tracing. Either Right or Left.
 
         Yields:
             curve (Iterator[Tuple[floating, floating]]): Iterator points that are on the curve.
