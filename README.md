@@ -26,7 +26,7 @@ Windows users can simply download an executable file from the [releases page](ht
 
 <details><summary><b>Linux and macOS (and Windows)</b></summary>
 
-Ensure that you have [python](https://www.python.org/) and [git](https://git-scm.com/) installed on your system.
+Ensure that you have [Python](https://www.python.org/) 3.12 or higher and [git](https://git-scm.com/) installed on your system.
 
 This project is not compatible with the newer versions of matplotlib. It works with version 3.6.2. I recommend creating a virtual environment and installing the dependencies from the `requirements.txt` file.
 
