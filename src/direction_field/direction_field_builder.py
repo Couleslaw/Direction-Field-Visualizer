@@ -189,7 +189,6 @@ class DirectionFieldBuilder:
         curvatures: list[np.floating] = []
         off_screen: list[bool] = []
         for x, y in points:
-            if abs(x - 0) <= 0.001:
             curvatures.append(self.__get_curvature_at(x, y, curvature_dx))
             off_screen.append(
                 False if (xlim[0] <= x <= xlim[1] and ylim[0] <= y <= ylim[1]) else True
