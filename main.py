@@ -7,7 +7,7 @@ from src.gui.main_window import MainWindow
 
 def main():
     # magic for pyinstaller to find the icon
-    icon_path = "src/icon.ico"
+    icon_path = "assets/icon.ico"
     if getattr(sys, "frozen", False):
         icon_path = os.path.join(sys._MEIPASS, icon_path)
 
